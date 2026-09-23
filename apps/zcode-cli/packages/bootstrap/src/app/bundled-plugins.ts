@@ -9,7 +9,6 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
-import { writeBundledOfficialMarketplacePartitionSync } from "@zcode/adapters";
 import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE, type Logger } from "@zcode/contracts";
 import { isZCodeCuaInternalFeatureEnabled, ZCODE_CUA_OFFICIAL_PLUGIN_ID } from "@zcode/shared";
 import {
@@ -407,12 +406,20 @@ function readSeedFileBytes(
 }
 
 function writeOfficialMarketplace(storageRoot: string, source: OfficialPluginSeedSource): void {
-  writeBundledOfficialMarketplacePartitionSync({
-    manifest: {
+  // The bundled seed is the sole writer of the official marketplace manifest since the CDN
+  // store was removed; write it directly at the canonical path the adapter loader reads.
+  writeMarketplaceManifestSync(
+    join(
+      storageRoot,
+      "marketplaces",
+      OFFICIAL_PLUGIN_MARKETPLACE,
+      "marketplace.json",
+    ),
+    {
       name: OFFICIAL_PLUGIN_MARKETPLACE,
       plugins: source.plugins.map((plugin) => {
-        // 商店信息（listing）与描述随目录条目下发：键名与 CDN 目录 schema 一致，
-        // 由 adapter 的同一套 parseEntryStoreListing 解析，UI 才能给内置插件渲染
+        // 商店信息（listing）与描述随目录条目下发：由 adapter 的同一套
+        // parseEntryStoreListing 解析，UI 才能给内置插件渲染
         // 显示名/分类/作者/示例提示词。描述取自插件包内 plugin.json（单一事实源）。
         const description = readSeedPluginDescription(source, plugin);
         return {
@@ -426,8 +433,21 @@ function writeOfficialMarketplace(storageRoot: string, source: OfficialPluginSee
       }),
       version: 1,
     },
-    storageRoot,
-  });
+  );
+}
+
+function writeMarketplaceManifestSync(path: string, value: unknown): void {
+  const contents = `${JSON.stringify(value, null, 2)}\n`;
+  mkdirSync(dirname(path), { recursive: true });
+  try {
+    // The bundled marketplace is rewritten on every start; re-writing identical bytes only
+    // raises the chance of Windows file locks. Skip only byte-identical writes; read
+    // failures or changed content still write and surface real errors.
+    if (readFileSync(path, "utf8") === contents) return;
+  } catch {
+    // Missing or temporarily unreadable file: keep writing so real failures propagate.
+  }
+  writeFileSync(path, contents, "utf8");
 }
 
 /** 从 seed 文件集中读插件 plugin.json 的 description；读取/解析失败按 undefined 降级。 */

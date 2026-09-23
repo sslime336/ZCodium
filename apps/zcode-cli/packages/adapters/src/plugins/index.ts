@@ -1,5 +1,5 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type {
   CustomCommandRoot,
   HookConfig,
@@ -40,10 +40,10 @@ import { listPluginHookSources } from "./hook-sources.js";
 import { enumeratePluginComponents } from "./plugin-components.js";
 import {
   listInstalledPluginRecords,
+  loadMarketplaceManifestSync,
   normalizeAuthorValue,
   resolveInstalledPluginRoot,
 } from "./marketplace.js";
-import { loadBundledOfficialPluginRootsSync } from "./official-marketplace.js";
 import type {
   LoadedPlugin,
   PluginAbortOptions,
@@ -83,11 +83,6 @@ export {
   type PluginMarketplaceEntry,
   type PluginMarketplaceManifest,
 } from "./marketplace.js";
-
-export {
-  writeBundledOfficialMarketplacePartitionSync,
-  writeCdnOfficialMarketplacePartitionSync,
-} from "./official-marketplace.js";
 
 export { getPluginSourceDiagnosticCode } from "./source-errors.js";
 
@@ -856,9 +851,9 @@ function scanOfficialCache(
 ): string[] {
   // 官方插件升级会保留旧版本缓存目录；若遍历全部目录再按插件 id
   // “先到先得”，旧版本会抢在 bundled marketplace 指向的当前版本前被加载。
-  // bundled 分片是当前随应用发布资产的权威清单；存在时只加载其 cachePath。
+  // bundled marketplace.json 是当前随应用发布资产的权威清单；存在时只加载其 cachePath。
   // 不能简单选择最高 semver，否则官方回滚版本时仍会错误加载旧缓存。
-  const bundledRoots = loadBundledOfficialPluginRootsSync(storageRoot);
+  const bundledRoots = bundledOfficialPluginRoots(storageRoot);
   if (bundledRoots !== undefined) {
     for (const rootPath of bundledRoots) {
       throwIfAborted(options);
@@ -888,6 +883,41 @@ function scanOfficialCache(
     });
     return [];
   }
+}
+
+// The bundled marketplace manifest is written by bootstrap (app-owned file). Only accept
+// plugin cachePath entries that stay strictly inside the official plugin cache root, so a
+// tampered manifest file cannot make discovery load arbitrary directories as builtin plugins.
+function bundledOfficialPluginRoots(storageRoot: string): string[] | undefined {
+  const manifest = loadMarketplaceManifestSync(storageRoot, ZCODE_OFFICIAL_PLUGIN_MARKETPLACE);
+  if (!manifest) return undefined;
+
+  const officialCacheRoot = resolve(storageRoot, "cache", ZCODE_OFFICIAL_PLUGIN_MARKETPLACE);
+  return manifest.plugins.flatMap((entry) => {
+    const name = entry.name.trim();
+    const cachePath = entry.cachePath;
+    if (!name || !cachePath) return [];
+
+    const pluginCacheRoot = resolve(officialCacheRoot, name);
+    const resolvedCachePath = resolve(cachePath);
+    if (
+      !isStrictDescendant(officialCacheRoot, pluginCacheRoot) ||
+      !isStrictDescendant(pluginCacheRoot, resolvedCachePath)
+    ) {
+      return [];
+    }
+    return [resolvedCachePath];
+  });
+}
+
+function isStrictDescendant(parentPath: string, childPath: string): boolean {
+  const relativePath = relative(parentPath, childPath);
+  return (
+    relativePath.length > 0 &&
+    !isAbsolute(relativePath) &&
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${sep}`)
+  );
 }
 
 function loadPlugin(

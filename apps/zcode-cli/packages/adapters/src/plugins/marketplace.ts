@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { PluginDiagnostic, PluginManifest, PluginStoreListing } from "@zcode/contracts";
-import { isOfficialMarketplaceId, ZCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
+import { isOfficialMarketplaceId } from "@zcode/contracts";
 import { DEFAULT_PLUGIN_MARKETPLACES, sanitizeZCodeRuntimeEnv } from "@zcode/shared";
 import { loadPluginMcpServerDefinitions, resolvePluginMcpServers } from "./mcp.js";
 import {
@@ -20,7 +20,6 @@ import {
 import { enumeratePluginComponents, type PluginComponentGroup } from "./plugin-components.js";
 import { applyNetworkEgressEnv } from "../network/subprocess-env.js";
 import { createNodeWebFetchHttpClientAdapter } from "../http/index.js";
-import { writeCdnOfficialMarketplacePartitionSync } from "./official-marketplace.js";
 import {
   isZipPluginUrlSource,
   readZipPluginSourceSha256,
@@ -317,13 +316,11 @@ export async function ensureMarketplaceManifestAvailable(input: {
     (item) => item.id === input.marketplace,
   );
   if (!record) return null;
-  // 受信任的内部懒加载：用 known record 的规范 source 拉取，并以 record.id 作为 trustedId，
-  // 使官方 id 只能由本来就是该官方 id 的记录刷新得到。
+  // 内部懒加载：用 known record 的规范 source 重新拉取 manifest。
   return await addMarketplace({
     signal: input.signal,
     source: record.source,
     storageRoot: input.storageRoot,
-    trustedId: record.id,
   });
 }
 
@@ -332,12 +329,6 @@ export async function addMarketplace(input: {
   signal?: AbortSignal;
   source: MarketplaceSource;
   storageRoot: string;
-  // 受信任的内部刷新传入正在刷新的 known record 规范 id。守卫只在 manifest 声明了官方 id
-  // 且该 id 不等于本次刷新的 trustedId 时拒绝，避免来源在刷新过程中被改名冒用：
-  //   - 用户侧新增（trustedId 缺失）声明官方 id → 拒绝；
-  //   - 非官方市场日后把 manifest 改名成官方 id，刷新时 trustedId 不匹配 → 拒绝；
-  // 非官方 manifest 名不受此约束，保持既有行为。
-  trustedId?: string;
 }): Promise<KnownMarketplaceRecord> {
   // persist:false 先只解析 manifest，不落盘——否则 marketplace 目录激活会用
   // 不可信 manifest.name 作为 target，先 rm 掉本地官方目录再 cp，等守卫抛错时
@@ -353,9 +344,12 @@ export async function addMarketplace(input: {
       signal: operationSignal,
     });
     throwIfPluginOperationAborted(operationSignal);
-    if (isOfficialMarketplaceId(loaded.manifest.name) && loaded.manifest.name !== input.trustedId) {
+    // 官方市场 id 保留给应用内置插件 seed（bootstrap 直接写
+    // marketplaces/<official>/marketplace.json）。CDN 官方市场已删除，任何
+    // 用户/工作区声明的 source（包括刷新旧 known record）都不再允许产出官方 id。
+    if (isOfficialMarketplaceId(loaded.manifest.name)) {
       throw new Error(
-        `Cannot add a marketplace named "${loaded.manifest.name}": that id is reserved for the official marketplace.`,
+        `Cannot add a marketplace named "${loaded.manifest.name}": that id is reserved for the bundled official marketplace.`,
       );
     }
     if (input.expectedId && loaded.manifest.name !== input.expectedId) {
@@ -363,23 +357,6 @@ export async function addMarketplace(input: {
         `Marketplace declaration id mismatch: expected ${input.expectedId}, received ${loaded.manifest.name}`,
       );
     }
-    if (
-      input.trustedId === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE &&
-      loaded.manifest.name !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE
-    ) {
-      throw new Error(
-        `Official marketplace source must provide ${ZCODE_OFFICIAL_PLUGIN_MARKETPLACE}, received ${loaded.manifest.name}`,
-      );
-    }
-    const persistedManifest =
-      loaded.manifest.name === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE
-        ? parseRequiredMarketplaceManifest(
-            writeCdnOfficialMarketplacePartitionSync({
-              manifest: loaded.manifest.raw,
-              storageRoot: input.storageRoot,
-            }),
-          )
-        : loaded.manifest;
     // 旧流程先删 marketplace target 再复制 source，刷新失败会丢失最后成功快照。
     // source tree 与规范 manifest 在同一 staging 目录准备完毕后一次 rename 激活。
     if (loaded.sourceRoot) {
@@ -387,10 +364,10 @@ export async function addMarketplace(input: {
         loaded.sourceRoot,
         input.storageRoot,
         loaded.manifest.name,
-        persistedManifest.raw,
+        loaded.manifest.raw,
         operationSignal,
       );
-    } else if (loaded.manifest.name !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE) {
+    } else {
       marketplaceActivation = await stageMarketplaceManifest(
         input.storageRoot,
         loaded.manifest.name,
@@ -407,7 +384,7 @@ export async function addMarketplace(input: {
       ...(loaded.manifest.description ? { description: loaded.manifest.description } : {}),
       addedAt: now,
       lastUpdated: now,
-      pluginCount: persistedManifest.plugins.length,
+      pluginCount: loaded.manifest.plugins.length,
       ...(marketplaceActivation ? { cacheTransactionId: marketplaceActivation.transactionId } : {}),
     };
     knownMarketplaceActivation = await upsertKnownMarketplace(input.storageRoot, record);
@@ -510,15 +487,14 @@ export async function updateMarketplace(input: {
   for (const record of selected) {
     throwIfPluginOperationAborted(input.signal);
 
-    // 受信任的刷新会重新拉取已知 marketplace 自带的 source；record.id 作为 trustedId，
-    // 使官方 id 只能由原本就是该 id 的记录刷新得到。
+    // 刷新会重新拉取已知 marketplace 自带的 source。历史遗留的官方 id 记录会在
+    // addMarketplace 的保留 id 守卫处失败并被记录为 refresh failure。
     try {
       updated.push(
         await addMarketplace({
           signal: input.signal,
           source: record.source,
           storageRoot: input.storageRoot,
-          trustedId: record.id,
         }),
       );
     } catch (error) {
