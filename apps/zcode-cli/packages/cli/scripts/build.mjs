@@ -192,10 +192,6 @@ export const resolveBuildAliases = ({
     rootDirectory,
     "../../packages/shared/src/workspace-hook-trust-store-file.ts",
   ),
-  "@zcode/shared/zcodeEndpoint": resolve(
-    rootDirectory,
-    "../../packages/shared/src/zcodeEndpoint.ts",
-  ),
   "@zcode/shared/node": resolve(rootDirectory, "../../packages/shared/src/node.ts"),
   "@zcode/shared": resolve(rootDirectory, "../../packages/shared/src/index.ts"),
   "@zcode/core": resolve(cliDirectory, "../core/dist/index.js"),

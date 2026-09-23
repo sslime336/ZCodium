@@ -1,5 +1,5 @@
 import type { BrowserWindow, NativeImage } from "electron";
-import { DEFAULT_ZCODE_ENDPOINT_ORIGIN, buildZCodeEndpointUrls, type Locale } from "@zcode/shared";
+import type { Locale } from "@zcode/shared";
 
 interface ArchitectureMismatch {
   /** 当前运行的二进制架构，例如 x64。 */
@@ -44,13 +44,11 @@ function detectArchitectureMismatch(
   return { binaryArch, nativeArch: "arm64" };
 }
 
-function resolveArchitectureDownloadUrl(
-  locale: Locale,
-  endpointOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-): string {
-  // 与 changelog 等外链保持一致，按应用语言分流到官网下载页。
-  const origin = buildZCodeEndpointUrls(endpointOrigin).origin;
-  return locale === "zh-CN" ? `${origin}/cn` : `${origin}/en`;
+// 官方站点下载页已随 harness 化删除；架构不匹配时引导到本仓库 Releases 选择原生构建。
+const ZCODIUM_RELEASES_URL = "https://github.com/ZCodium-project/ZCodium/releases";
+
+function resolveArchitectureDownloadUrl(): string {
+  return ZCODIUM_RELEASES_URL;
 }
 
 interface ArchitectureMismatchDialogText {
@@ -137,7 +135,7 @@ export async function maybeWarnArchitectureMismatch(options: {
       : await dialog.showMessageBox(dialogOptions);
 
   if (response === 0) {
-    const url = resolveArchitectureDownloadUrl(options.locale);
+    const url = resolveArchitectureDownloadUrl();
     options.logger.info(`[architecture] 用户选择前往下载：${url}`);
     await shell.openExternal(url);
   }

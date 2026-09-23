@@ -13,12 +13,6 @@ import {
   ZCODE_RUNTIME_ENV_KEY,
   ZCODE_VERSION,
   buildZCodeToolEnvPassthroughEnv,
-  resolveRuntimeZCodeEndpointOrigin,
-  readProductEndpointEnv,
-  pickProductEndpointEnv,
-  resolveZaiBusinessBaseUrl,
-  resolveZaiOAuthClientId,
-  resolveZaiOAuthOrigin,
   normalizeDynamicWorkflowMode,
   sanitizeZCodeRuntimeEnv,
   type ZCodeRuntimeEnv,
@@ -30,10 +24,6 @@ import {
   ZCODE_CUA_BUNDLED_HELPER_APP_PATH_ENV,
   ZCODE_WINDOWS_APP_INSTALL_DIR_ENV,
 } from "@zcode/services/node";
-import {
-  resolveRemoteCdnBaseUrls as resolveOrderedRemoteCdnBaseUrls,
-  type ResolveRemoteCdnOptions,
-} from "./remoteCdn.js";
 import { getElectronAppPath, isElectronAppPackaged } from "./desktopElectronApp.js";
 import { omitDesktopTelemetryEnvironment } from "./desktopTelemetryPolicy.js";
 
@@ -90,8 +80,6 @@ export function getCredentialsDir() {
 
 export type RemoteAssetDirs = {
   mockCdnDir?: string;
-  remoteCdnBaseUrl?: string;
-  remoteCdnBaseUrls?: string[];
   remoteCacheDir?: string;
 };
 type LocalRuntimeEnv = Record<string, string | undefined>;
@@ -196,54 +184,12 @@ function resolveAvailableDevelopmentMockCdnDir(): string | undefined {
   const mockCdnDir = resolveDevelopmentMockCdnDir();
   const releaseDir = join(mockCdnDir, "releases", ZCODE_VERSION);
   // 开发态 mock-cdn 是可选离线缓存。当前版本目录不存在时继续传 mockCdnDir，
-  // 会让 WSL/SSH 重连先命中一个必然缺失的本地路径，遮蔽已有的 CDN/cache fallback。
+  // 会让重连先命中一个必然缺失的本地路径，遮蔽已有的本地 cache fallback。
   return existsSync(releaseDir) ? mockCdnDir : undefined;
-}
-
-function isTruthyEnvFlag(value: string | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-function shouldUseRemoteCdnInDevelopment(localEnv: LocalRuntimeEnv = {}): boolean {
-  return isTruthyEnvFlag(resolveEnvValue("ZCODE_DEV_REMOTE_ASSET_USE_CDN", localEnv));
-}
-
-function resolveRemoteCdnBaseUrls(
-  options: ResolveRemoteCdnOptions = {},
-  localEnv: LocalRuntimeEnv = {},
-): string[] {
-  const raw = resolveEnvValue("ZCODE_REMOTE_ASSET_CDN_BASE_URL", localEnv);
-  return resolveOrderedRemoteCdnBaseUrls({
-    ...options,
-    env: ZCODE_ENV,
-    overrideBaseUrl: raw,
-    version: ZCODE_VERSION,
-  });
 }
 
 function resolveEnvValue(envName: string, localEnv: LocalRuntimeEnv = {}): string | undefined {
   return process.env[envName]?.trim() || localEnv[envName]?.trim() || undefined;
-}
-
-export function resolveZCodeEndpointEnvBaseOrigin(
-  localEnv: LocalRuntimeEnv = {},
-): string | undefined {
-  const buildEnv = readProductEndpointEnv();
-  // main 进程临时验证更新服务时不会重新写 .env，命令行传入的 endpoint 必须优先于本地文件。
-  return (
-    process.env["ZCODE_BASE_URL"]?.trim() ||
-    process.env["ZCODE_ENDPOINT_ORIGIN"]?.trim() ||
-    localEnv.ZCODE_BASE_URL?.trim() ||
-    localEnv.ZCODE_ENDPOINT_ORIGIN?.trim() ||
-    buildEnv.ZCODE_BASE_URL?.trim() ||
-    buildEnv.ZCODE_ENDPOINT_ORIGIN?.trim() ||
-    undefined
-  );
 }
 
 function readDefinedProcessEnv(): Record<string, string> {
@@ -257,20 +203,9 @@ function readDefinedProcessEnv(): Record<string, string> {
 }
 
 function applySelectedZCodeEnvLinks(env: Record<string, string>): Record<string, string> {
-  const endpointEnv = {
-    ...readProductEndpointEnv(),
-    ...env,
-    ZCODE_ENV,
-  };
-
-  return {
-    ...pickProductEndpointEnv(endpointEnv),
-    ...env,
-    ZCODE_BASE_URL: env.ZCODE_BASE_URL ?? resolveRuntimeZCodeEndpointOrigin(endpointEnv),
-    ZAI_OAUTH_ORIGIN: env.ZAI_OAUTH_ORIGIN ?? resolveZaiOAuthOrigin(endpointEnv),
-    ZAI_BUSINESS_BASE_URL: env.ZAI_BUSINESS_BASE_URL ?? resolveZaiBusinessBaseUrl(endpointEnv),
-    ZAI_OAUTH_CLIENT_ID: env.ZAI_OAUTH_CLIENT_ID ?? resolveZaiOAuthClientId(endpointEnv),
-  };
+  // 官方平台 endpoint/OAuth 环境注入已随 harness 化删除；
+  // .env 里用户自配的 ZCODE_* 变量仍按原样透传给 host。
+  return { ...env, ZCODE_ENV };
 }
 
 function resolveHostProcessNodeEnv(): ZCodeRuntimeEnv {
@@ -288,32 +223,15 @@ function resolveRemoteAssetCacheDir(localEnv: LocalRuntimeEnv = {}): string {
   return join(getElectronAppPath("userData"), "remote-assets-cache");
 }
 
-export function resolveRemoteAssetDirs(
-  options: ResolveRemoteCdnOptions = {},
-  localEnv: LocalRuntimeEnv = {},
-): RemoteAssetDirs {
-  const remoteCdnBaseUrls = resolveRemoteCdnBaseUrls(options, localEnv);
-  const remoteCdnBaseUrl = remoteCdnBaseUrls[0];
-
-  // remote 资源之前和 desktop 本地 provider 资源共用安装包内路径，
-  // 结果打包后会把整套 Linux 远程运行时一起塞进 .app，和“remote 资源走 CDN / mock-cdn”的职责边界冲突。
-  // 这里改成显式分流：开发态只读仓库里的 mock-cdn；生产态统一走 CDN + 本地缓存目录，
-  // 不再暴露任何安装包内 remote-assets 路径，避免 remote 资源再次被塞回安装包。
-  // 功能开关：开发态默认继续走 mock-cdn，只有显式打开开关才切到公网 CDN。
-  // 这样能兼容离线开发场景，同时允许在开发环境提前验证真实 CDN 下载链路。
-  if (isElectronAppPackaged() || shouldUseRemoteCdnInDevelopment(localEnv)) {
-    return {
-      remoteCdnBaseUrl,
-      remoteCdnBaseUrls,
-      remoteCacheDir: resolveRemoteAssetCacheDir(localEnv),
-    };
-  }
-
-  const developmentMockCdnDir = resolveAvailableDevelopmentMockCdnDir();
+export function resolveRemoteAssetDirs(localEnv: LocalRuntimeEnv = {}): RemoteAssetDirs {
+  // 官方 CDN 下载链路已随 harness 化删除（remoteCdn.ts）。
+  // 开发态仅保留仓库内 mock-cdn 作为可选离线缓存；生产态只保留本地缓存目录，
+  // 不再暴露任何安装包内 remote-assets 路径或远端下载地址。
+  const developmentMockCdnDir = isElectronAppPackaged()
+    ? undefined
+    : resolveAvailableDevelopmentMockCdnDir();
   return {
     ...(developmentMockCdnDir ? { mockCdnDir: developmentMockCdnDir } : {}),
-    remoteCdnBaseUrl,
-    remoteCdnBaseUrls,
     remoteCacheDir: resolveRemoteAssetCacheDir(localEnv),
   };
 }

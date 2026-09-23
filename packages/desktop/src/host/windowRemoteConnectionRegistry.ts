@@ -9,8 +9,6 @@ import {
 
 interface WindowRemoteAssetDirs {
   mockCdnDir?: string;
-  remoteCdnBaseUrl?: string;
-  remoteCdnBaseUrls?: string[];
   remoteCacheDir?: string;
 }
 
