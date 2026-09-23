@@ -44,7 +44,6 @@ import {
   hostModulePath,
   resolveBundledGlmBinaryPath,
 } from "./desktopRuntimeEnv.js";
-import { createFeedbackLogArchiveFromExportLogs } from "./exportLogs.js";
 import { buildHostE2ECoverageEnv } from "./e2eCoverage.js";
 
 export interface WindowBootstrapOptions {
@@ -53,7 +52,6 @@ export interface WindowBootstrapOptions {
   initialWorkspacePath?: string;
   initialWorkspacePurpose?: WorkspacePurpose;
   unavailableWorkspacePath?: string;
-  windowKind?: "main" | "update-status";
   locale?: string;
 }
 
@@ -63,7 +61,6 @@ export interface HostInitMessage {
   databaseStartupId?: string;
   deliveryKind?: TaskRealtimeHostDeliveryKind;
   deviceMid?: string;
-  feedbackApiBase?: string;
   workspacePath?: string;
   workspaceIdentity?: string;
   agentWarmupTargets?: Array<{
@@ -112,7 +109,6 @@ export function loadWindow(
       initialWorkspacePath: bootstrap?.initialWorkspacePath,
       initialWorkspacePurpose: bootstrap?.initialWorkspacePurpose,
       unavailableWorkspacePath: bootstrap?.unavailableWorkspacePath,
-      windowKind: bootstrap?.windowKind,
       locale: bootstrap?.locale,
     }).filter((entry): entry is [string, string] => entry[1] != null),
   );
@@ -327,29 +323,6 @@ export function spawnHostProcess(
     if (result.data.type === HostResponseTypes.CuaOperationState) {
       // Main 只投影 Host 已经判定的 turn 状态，不在这里重复解析 session/tool 业务事件。
       dependencies.onCuaOperationStateChanged?.(child, result.data);
-      return;
-    }
-
-    if (result.data.type === HostResponseTypes.FeedbackLogArchiveRequest) {
-      const request = result.data;
-      void createFeedbackLogArchiveFromExportLogs(request.sourceDir)
-        .then((archive) => {
-          child.postMessage({
-            type: HostMessageTypes.FeedbackLogArchiveResult,
-            requestId: request.requestId,
-            ok: true,
-            path: archive.path,
-            size: archive.size,
-          });
-        })
-        .catch((error) => {
-          child.postMessage({
-            type: HostMessageTypes.FeedbackLogArchiveResult,
-            requestId: request.requestId,
-            ok: false,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
       return;
     }
 

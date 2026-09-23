@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input.js";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectLabel,
   SelectTrigger,
@@ -47,13 +48,20 @@ interface LoginApiKeyFormProps {
   onSkipped: () => void | Promise<void>;
 }
 
-export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFormProps) {
+export function LoginApiKeyForm({
+  onCancel,
+  onSaved,
+  onSkipped,
+}: LoginApiKeyFormProps) {
   const { intl, locale } = useZCodeIntl();
   const platform = usePlatform();
-  const { modelSelectionService, providerSettingsService, settingService } = useServices();
-  const markApiKeyLoginSuccess = useZCodeStore((state) => state.markApiKeyLoginSuccess);
-  const [providerChoice, setProviderChoice] = useState<ApiKeyProviderChoice>(() =>
-    resolveLoginApiKeyDefaultProvider(locale),
+  const { modelSelectionService, providerSettingsService, settingService } =
+    useServices();
+  const markApiKeyLoginSuccess = useZCodeStore(
+    (state) => state.markApiKeyLoginSuccess,
+  );
+  const [providerChoice, setProviderChoice] = useState<ApiKeyProviderChoice>(
+    () => resolveLoginApiKeyDefaultProvider(locale),
   );
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -61,16 +69,23 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
   const [error, setError] = useState<string | null>(null);
   const providerSettingsRead = useProviderSettingsView();
   const providerSettingsView =
-    providerSettingsRead.state.status === "ready" ? providerSettingsRead.state.view : null;
+    providerSettingsRead.state.status === "ready"
+      ? providerSettingsRead.state.view
+      : null;
 
   const providerLabel = resolveLoginApiKeyProviderLabel(providerChoice);
   const templateId = resolveLoginApiKeyTemplateId(providerChoice);
   const templateAccess = providerSettingsView?.providerTemplates.find(
     (template) => template.templateId === templateId,
   )?.config.access;
-  const apiKeyUrl = isApiKeyAccess(templateAccess) ? templateAccess.apiKeyManagementUrl : undefined;
+  const apiKeyUrl = isApiKeyAccess(templateAccess)
+    ? templateAccess.apiKeyManagementUrl
+    : undefined;
   // 用户已经输入或回填 API Key 后，右侧获取入口会挤占密码输入区域。
-  const showApiKeyLink = shouldShowLoginApiKeyLink(apiKeyValue, apiKeyUrl ?? undefined);
+  const showApiKeyLink = shouldShowLoginApiKeyLink(
+    apiKeyValue,
+    apiKeyUrl ?? undefined,
+  );
 
   const saveApiKeyProvider = async () => {
     const apiKey = apiKeyValue.trim();
@@ -82,9 +97,9 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
     setSaving(true);
     setError(null);
     try {
-      const template = (await providerSettingsService.getView()).providerTemplates.find(
-        (item) => item.templateId === templateId,
-      );
+      const template = (
+        await providerSettingsService.getView()
+      ).providerTemplates.find((item) => item.templateId === templateId);
       if (!template || !isApiKeyAccess(template.config.access)) {
         setError(
           intl.formatMessage(
@@ -97,12 +112,15 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
 
       const created = await providerSettingsService.createPersonalProvider({
         templateId,
-        initialConfig: { access: { type: template.config.access.type, apiKey } },
+        initialConfig: {
+          access: { type: template.config.access.type, apiKey },
+        },
       });
-      const defaultModelPreference = buildLoginApiKeyDefaultModelPreferenceFromSelection(
-        await modelSelectionService.getView(),
-        created.providerId,
-      );
+      const defaultModelPreference =
+        buildLoginApiKeyDefaultModelPreferenceFromSelection(
+          await modelSelectionService.getView(),
+          created.providerId,
+        );
       markApiKeyLoginSuccess(defaultModelPreference);
       await onSaved();
     } catch (saveError) {
@@ -114,7 +132,10 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
         intl.formatMessage(
           { id: "login.apiKey.saveError" },
           {
-            error: saveError instanceof Error ? saveError.message : String(saveError),
+            error:
+              saveError instanceof Error
+                ? saveError.message
+                : String(saveError),
           },
         ),
       );
@@ -129,7 +150,9 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
     try {
       // 跳过只表示用户确认当前 provider family 运行域，不能写入空 API Key
       // 或触发 API Key 登录成功事件，否则后续模型选择会误以为已有可用凭据。
-      await settingService.update(buildLoginApiKeySkipSettings(providerChoice, Date.now()));
+      await settingService.update(
+        buildLoginApiKeySkipSettings(providerChoice, Date.now()),
+      );
       await onSkipped();
     } catch (skipError) {
       logger.error("[LoginEntry] 跳过 API Key 登录失败", {
@@ -140,7 +163,10 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
         intl.formatMessage(
           { id: "login.apiKey.skipError" },
           {
-            error: skipError instanceof Error ? skipError.message : String(skipError),
+            error:
+              skipError instanceof Error
+                ? skipError.message
+                : String(skipError),
           },
         ),
       );
@@ -161,7 +187,9 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
           <div>
             <Select
               value={providerChoice}
-              onValueChange={(value) => setProviderChoice(value as ApiKeyProviderChoice)}
+              onValueChange={(value) =>
+                setProviderChoice(value as ApiKeyProviderChoice)
+              }
               disabled={busy}
             >
               <SelectTrigger
@@ -176,28 +204,35 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end" className="rounded-lg">
-                <SelectItem
-                  value="zai"
-                  className="rounded-md"
-                  data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "zai")}
-                >
-                  {renderOAuthProviderIcon(ZAI_PROVIDER_ID, "size-4")}
-                  {intl.formatMessage({ id: "login.apiKey.provider.zai" })}
-                </SelectItem>
-                <SelectItem
-                  value="bigmodel"
-                  className="rounded-md"
-                  data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "bigmodel")}
-                >
-                  {renderOAuthProviderIcon(BIGMODEL_PROVIDER_ID, "size-4")}
-                  {intl.formatMessage({
-                    id: "login.apiKey.provider.bigmodel",
-                  })}
-                </SelectItem>
-                {/* 下拉里只列内置两家，提示其余供应商在设置里配置，避免用户以为只有这两个可选。 */}
-                <SelectLabel className="mx-1 mt-1 border-t border-border pt-2 text-ui-xs font-normal leading-4 whitespace-normal text-foreground-subtle">
-                  {intl.formatMessage({ id: "login.apiKey.moreProvidersHint" })}
-                </SelectLabel>
+                <SelectGroup>
+                  <SelectItem
+                    value="zai"
+                    className="rounded-md"
+                    data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "zai")}
+                  >
+                    {renderOAuthProviderIcon(ZAI_PROVIDER_ID, "size-4")}
+                    {intl.formatMessage({ id: "login.apiKey.provider.zai" })}
+                  </SelectItem>
+                  <SelectItem
+                    value="bigmodel"
+                    className="rounded-md"
+                    data-testid={testId(
+                      TID_LOGIN_API_KEY_PROVIDER_ITEM,
+                      "bigmodel",
+                    )}
+                  >
+                    {renderOAuthProviderIcon(BIGMODEL_PROVIDER_ID, "size-4")}
+                    {intl.formatMessage({
+                      id: "login.apiKey.provider.bigmodel",
+                    })}
+                  </SelectItem>
+                  {/* 下拉里只列内置两家，提示其余供应商在设置里配置，避免用户以为只有这两个可选。 */}
+                  <SelectLabel className="mx-1 mt-1 border-t border-border pt-2 text-ui-xs font-normal leading-4 whitespace-normal text-foreground-subtle">
+                    {intl.formatMessage({
+                      id: "login.apiKey.moreProvidersHint",
+                    })}
+                  </SelectLabel>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

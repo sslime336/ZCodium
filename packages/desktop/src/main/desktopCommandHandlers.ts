@@ -12,7 +12,6 @@ import {
   type Locale,
   resolveRuntimeZCodeEndpointOrigin,
   ZCODE_ENV,
-  ZCODE_PRODUCT_FLAVOR,
   buildZCodeEndpointUrls,
   getCommunityUrlFromConfigs,
   getFeedbackUrlFromConfig,
@@ -22,7 +21,6 @@ import {
 } from "@zcode/shared";
 import { readZCodeStdioTapDevState, setZCodeStdioTapDevEnabled } from "@zcode/services/node";
 import { showAboutDialog } from "./about.js";
-import { checkForUpdateMenuClick } from "./autoUpdater.js";
 import { exportLogs } from "./exportLogs.js";
 import { openResourceManager } from "./resourceManagerWindow.js";
 import { resolveCuaOsSupport } from "./cuaOsSupport.js";
@@ -41,7 +39,6 @@ export const HELP_TOGGLE_DEV_TOOLS_MENU_ID = "help.toggle-dev-tools";
 export const HELP_TOGGLE_ZCODE_STDIO_TAP_MENU_ID = "help.toggle-zcode-stdio-tap";
 const ZCODE_ENDPOINT_PROMPT_WIDTH = 460;
 const ZCODE_ENDPOINT_PROMPT_HEIGHT = 210;
-const CODING_PLAN_WEBVIEW_PARTITION = "persist:zcode-coding-plan";
 
 function resolveTargetWindow(senderWindow?: BrowserWindow | null) {
   if (senderWindow && !senderWindow.isDestroyed()) {
@@ -127,25 +124,6 @@ async function clearAllDataAndRelaunch(options: {
 
   app.relaunch();
   app.exit(0);
-}
-
-export async function clearCodingPlanWebviewStorage(options: {
-  logger: {
-    info: (...args: unknown[]) => void;
-    warn: (...args: unknown[]) => void;
-  };
-}) {
-  try {
-    // Coding Plan webview 使用独立持久 partition，默认窗口 session.clearStorageData()
-    // 不会覆盖它；退出登录/清理数据时必须显式清除，避免旧账号 token 被下一次官网首屏读到。
-    await session.fromPartition(CODING_PLAN_WEBVIEW_PARTITION).clearStorageData();
-    options.logger.info("[coding-plan-webview] cleared persistent partition storage");
-  } catch (error) {
-    options.logger.warn(
-      "[coding-plan-webview] failed to clear persistent partition storage:",
-      error,
-    );
-  }
 }
 
 async function fetchRemoteAppConfig(fetchRemoteConfig?: () => Promise<unknown>): Promise<unknown> {
@@ -588,14 +566,6 @@ export async function executeDesktopCommand(options: {
         }),
       );
       return;
-    case DesktopCommandIds.CheckForUpdates:
-      // 按产品身份而不是后端环境放行：生产后端的 Preview 同样没有更新器。
-      if (ZCODE_PRODUCT_FLAVOR === "production") {
-        checkForUpdateMenuClick(targetWindow);
-      } else {
-        options.logger.info("[auto-update] Preview 已禁用手动更新检查");
-      }
-      return;
     case DesktopCommandIds.RelaunchApp:
       await options.onRelaunchApp();
       return;
@@ -673,14 +643,10 @@ export async function executeDesktopCommand(options: {
       });
       return;
     case DesktopCommandIds.ClearAllData:
-      await clearCodingPlanWebviewStorage({ logger: options.logger });
       await clearAllDataAndRelaunch({
         credentialsDir: options.credentialsDir,
         logger: options.logger,
       });
-      return;
-    case DesktopCommandIds.ClearCodingPlanWebviewStorage:
-      await clearCodingPlanWebviewStorage({ logger: options.logger });
       return;
     case DesktopCommandIds.GetCuaOsSupport:
       return resolveCuaOsSupport();

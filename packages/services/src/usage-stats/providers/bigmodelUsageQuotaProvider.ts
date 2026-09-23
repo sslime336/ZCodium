@@ -14,7 +14,6 @@ import type {
   CodingPlanResetUseResult,
   UsageEntitlementRequest,
   UsageEntitlementSnapshot,
-  UsageMcpQuotaSnapshot,
   UsageQuotaLimit,
   UsageStatsRequest,
   UsageStatsSnapshot,
@@ -62,11 +61,6 @@ import {
   resolveCodingPlanUsageTimeRange,
   resolveUsageTimeRange,
 } from "./bigmodelUsageMonitorRange.js";
-import { fetchBigModelSubscriptionSummary } from "./bigmodelSubscriptionProvider.js";
-import {
-  fetchMcpQuotaSnapshot,
-  type OfficialMcpCredentialSource,
-} from "./zcodeMcpQuotaProvider.js";
 import type { BigModelUsageQuotaEnvelope } from "./bigmodelUsageQuotaMapper.js";
 import { normalizeLimits, pickPrimaryLimit } from "./bigmodelUsageQuotaMapper.js";
 
@@ -134,11 +128,6 @@ interface BigModelUsageQuotaProviderOptions {
   ) => Promise<UsageApiAuthorization | null>;
   credentialService?: Pick<ICredentialService, "load">;
   env?: NodeJS.ProcessEnv;
-  /**
-   * 官方 Server MCP 的凭证来源。缺省时 entitlement 快照的 mcpQuota 恒为 null，
-   * 既有装配（含单测）无需改动即可保持原行为。
-   */
-  officialMcpCredentialSource?: OfficialMcpCredentialSource;
 }
 
 interface ResolvedQuotaAuthorization {
@@ -180,7 +169,6 @@ export class BigModelUsageQuotaProvider {
   private readonly resolveApiAuthorization?: BigModelUsageQuotaProviderOptions["resolveApiAuthorization"];
   private readonly credentialService?: Pick<ICredentialService, "load">;
   private readonly env: NodeJS.ProcessEnv;
-  private readonly officialMcpCredentialSource?: OfficialMcpCredentialSource;
 
   constructor(options: BigModelUsageQuotaProviderOptions) {
     this.apiClient = options.apiClient;
@@ -188,7 +176,6 @@ export class BigModelUsageQuotaProvider {
     this.resolveApiAuthorization = options.resolveApiAuthorization;
     this.credentialService = options.credentialService;
     this.env = options.env ?? process.env;
-    this.officialMcpCredentialSource = options.officialMcpCredentialSource;
   }
 
   async getSnapshot(): Promise<UsageEntitlementSnapshot> {
@@ -215,24 +202,6 @@ export class BigModelUsageQuotaProvider {
 
     const generatedAt = Date.now();
     const teamContext = accountAccess ? resolveTeamPlanContext(accountAccess) : null;
-    const providerId = request.preferredProviderId?.trim() ?? "";
-    // 团队权益不以调用 Key 为前置条件；即使 Key 创建/复制失败也保留已确认的订阅。
-    const teamEntitlement = teamContext
-      ? await fetchBigModelSubscriptionSummary({
-          apiClient: this.apiClient,
-          authorization: "",
-          quotaUrl:
-            resolveQuotaUrlFromEnv(this.env) ??
-            (teamContext.family === "zai"
-              ? buildZaiQuotaUrl(this.env)
-              : buildBigModelQuotaUrl(this.env)),
-          teamContext,
-          businessToken: await this.credentialService?.load(
-            `oauth:${teamContext.family}:access_token`,
-          ),
-          timeoutMs: REQUEST_TIMEOUT_MS,
-        })
-      : null;
     let resolved: ResolvedQuotaAuthorization | null = null;
     try {
       resolved = await this.resolveAuthorization({
@@ -242,35 +211,16 @@ export class BigModelUsageQuotaProvider {
         allowEnvApiKey: request.allowEnvApiKey,
       });
     } catch (error) {
-      log.warn(undefined, "读取用量凭据失败，保留独立订阅判定", {
+      log.warn(undefined, "读取用量凭据失败", {
         error: error instanceof Error ? error.message : String(error),
-        preferredProviderId: providerId,
+        preferredProviderId: request.preferredProviderId?.trim() ?? "",
       });
     }
-    const entitlement =
-      teamEntitlement ??
-      (resolved
-        ? await fetchBigModelSubscriptionSummary({
-            apiClient: this.apiClient,
-            authorization: resolved.authorization,
-            quotaUrl: resolved.quotaUrl,
-            timeoutMs: REQUEST_TIMEOUT_MS,
-          })
-        : { kind: "unknown" as const });
-    // 订阅未知不能发布为成功空快照，否则 hook 会覆盖同身份已确认权益并清除失败退避。
-    // 无凭据的未配置状态仍正常返回；已有查询身份时让统一失败路径保留快照。
-    if (entitlement.kind === "unknown" && (resolved || teamContext)) {
-      throw new Error("Coding Plan entitlement refresh failed");
-    }
-    const subscription =
-      entitlement.kind !== "available" ? null : buildSubscriptionSnapshot(entitlement.subscription);
-    const [payload, mcpQuota] = resolved
-      ? await Promise.all([
-          this.fetchQuota(resolved).catch(() => null),
-          this.fetchMcpQuota(resolved).catch(() => null),
-        ])
-      : [null, null];
-    // quota 失败或 level 存在都不改变权益；额度耗尽也只影响用量显示。
+    // 官方 Coding Plan 订阅/额度查询（bigmodel subscription、Server MCP quota）已随 A 层删除，
+    // 快照只保留 quota monitor 与本地可判定的上下文。
+    const payload = resolved ? await this.fetchQuota(resolved).catch(() => null) : null;
+    const providerId = request.preferredProviderId?.trim() ?? "";
+    // quota 失败不改变权益；额度耗尽也只影响用量显示。
     const quotaData = payload && isSuccessfulBigModelEnvelope(payload) ? payload.data : null;
     const limits = normalizeLimits(quotaData?.limits);
     const primaryLimit = pickPrimaryLimit(limits);
@@ -283,21 +233,13 @@ export class BigModelUsageQuotaProvider {
     return {
       generatedAt,
       authenticated: true,
-      ...(entitlement.kind === "available"
+      ...(resolved || teamContext
         ? {}
         : {
-            unavailableReason:
-              entitlement.kind === "unavailable"
-                ? ("no_plan" as const)
-                : resolved || teamContext
-                  ? ("unavailable" as const)
-                  : ("not_configured" as const),
+            unavailableReason: "not_configured" as const,
           }),
-      ...(teamEntitlement?.kind === "unavailable" && teamEntitlement.reason
-        ? { teamPlanUnavailableReason: teamEntitlement.reason }
-        : {}),
       context: resolved
-        ? buildUsageEntitlementContext(resolved, subscription)
+        ? buildUsageEntitlementContext(resolved, null)
         : buildUsageEntitlementContextFromRequest(resolvedRequest),
       provider: resolved?.provider ?? null,
       remaining: primaryLimit
@@ -308,9 +250,8 @@ export class BigModelUsageQuotaProvider {
             nextResetTime: primaryLimit.nextResetTime ?? null,
           }
         : null,
-      subscription,
+      subscription: null,
       quota: quotaData ? { level: quotaData.level?.trim() || null, limits } : null,
-      mcpQuota,
     };
   }
 
@@ -320,33 +261,6 @@ export class BigModelUsageQuotaProvider {
     if (!accountAccess) return undefined;
     if (!("mode" in accountAccess)) return accountAccess;
     return (await this.accountRequestAuthService.resolveAccessCurrent(accountAccess)) ?? undefined;
-  }
-
-  /**
-   * 读取官方 Server MCP 额度。仅 Coding Plan provider 会发起：
-   * 环境变量 key、普通 API Key provider 与 Start Plan 都没有该权益。
-   */
-  private async fetchMcpQuota(
-    resolved: ResolvedQuotaAuthorization,
-  ): Promise<UsageMcpQuotaSnapshot | null> {
-    if (!this.officialMcpCredentialSource) {
-      return null;
-    }
-    if (!isCodingPlanModelProviderId(resolved.provider.id)) {
-      return null;
-    }
-    return fetchMcpQuotaSnapshot({
-      apiClient: this.apiClient,
-      credentialSource: this.officialMcpCredentialSource,
-      env: this.env,
-      requestScope: {
-        providerFamily:
-          resolved.teamContext?.family ??
-          (isZaiCodingPlanProviderId(resolved.provider.id) ? "zai" : "bigmodel"),
-        organizationId: resolved.teamContext?.organizationId ?? null,
-        projectId: resolved.teamContext?.projectId ?? null,
-      },
-    });
   }
 
   private async getStartPlanSnapshot(
@@ -1175,20 +1089,6 @@ function isSuccessfulBigModelEnvelope(payload: { code?: number; success?: boolea
   return (
     payload.success !== false && (code === undefined || code === null || code === 0 || code === 200)
   );
-}
-
-function buildSubscriptionSnapshot(summary: {
-  productId: string;
-  productName: string;
-  billingCycle: string | null;
-  renewTime: string | null;
-  expireTime: string | null;
-}): UsageEntitlementSnapshot["subscription"] {
-  return {
-    identityType: "unknown",
-    identityMasked: null,
-    details: [{ ...summary, purchaseTime: null, beginTime: null }],
-  };
 }
 
 function buildZaiStartPlanSubscription(

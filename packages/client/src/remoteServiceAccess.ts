@@ -14,16 +14,12 @@ import {
   IZCodeAgentService,
   IZCodeSessionService,
   ICuaPermissionService,
-  IConversationShareService,
   IFileWatcherService,
   IOAuthService,
   IModelSelectionService,
   IProviderSettingsService,
   IProviderProvisioningTargetService,
   IUsageStatsService,
-  ICodingPlanSubscriptionService,
-  IClientConfigService,
-  IClientScenesService,
   IOffPeakTaskService,
   ISkillsService,
   ISkillSyncService,
@@ -36,7 +32,6 @@ import {
   IHooksService,
   IMemoryService,
   ISettingsSyncService,
-  IFeedbackService,
   IPromptAttachmentTransferService,
   IWindowControllerService,
   type IServiceAccessor,
@@ -65,7 +60,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
   // cuaPermissionService 在 IServiceAccessor 上是可选（远端 host 不提供），但桌面 renderer
   // 经 RPC 一定能拿到（main host 始终注册此 descriptor；非 macOS / 未启用时方法返回 available:false）。
   readonly cuaPermissionService: ICuaPermissionService;
-  readonly conversationShareService: IConversationShareService;
   readonly fileWatcherService: IFileWatcherService;
   readonly oauthService: IOAuthService;
   readonly providerSettingsService: IProviderSettingsService;
@@ -73,9 +67,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
   /** Host-only target proxy；不属于 IServiceAccessor，避免向 Renderer 暴露 Secret 写入接口。 */
   readonly providerProvisioningTargetService!: IProviderProvisioningTargetService;
   readonly usageStatsService: IUsageStatsService;
-  readonly codingPlanSubscriptionService: ICodingPlanSubscriptionService;
-  readonly clientConfigService: IClientConfigService;
-  readonly clientScenesService: IClientScenesService;
   readonly offPeakTaskService: IOffPeakTaskService;
   readonly skillsService: ISkillsService;
   readonly skillSyncService: ISkillSyncService;
@@ -88,7 +79,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
   readonly hooksService: IHooksService;
   readonly memoryService: IMemoryService;
   readonly settingsSyncService: ISettingsSyncService;
-  readonly feedbackService: IFeedbackService;
   readonly promptAttachmentTransferService: IPromptAttachmentTransferService;
 
   constructor(channelClient: IChannelClient) {
@@ -139,9 +129,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
     this.cuaPermissionService = ProxyChannel.toService<ICuaPermissionService>(
       channelClient.getChannel(ICuaPermissionService.channelName),
     );
-    this.conversationShareService = ProxyChannel.toService<IConversationShareService>(
-      channelClient.getChannel(IConversationShareService.channelName),
-    );
     this.fileWatcherService = ProxyChannel.toService<IFileWatcherService>(
       channelClient.getChannel(IFileWatcherService.channelName),
     );
@@ -162,15 +149,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
     });
     this.usageStatsService = ProxyChannel.toService<IUsageStatsService>(
       channelClient.getChannel(IUsageStatsService.channelName),
-    );
-    this.codingPlanSubscriptionService = ProxyChannel.toService<ICodingPlanSubscriptionService>(
-      channelClient.getChannel(ICodingPlanSubscriptionService.channelName),
-    );
-    this.clientConfigService = ProxyChannel.toService<IClientConfigService>(
-      channelClient.getChannel(IClientConfigService.channelName),
-    );
-    this.clientScenesService = ProxyChannel.toService<IClientScenesService>(
-      channelClient.getChannel(IClientScenesService.channelName),
     );
     this.offPeakTaskService = ProxyChannel.toService<IOffPeakTaskService>(
       channelClient.getChannel(IOffPeakTaskService.channelName),
@@ -207,9 +185,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
     );
     this.settingsSyncService = ProxyChannel.toService<ISettingsSyncService>(
       channelClient.getChannel(ISettingsSyncService.channelName),
-    );
-    this.feedbackService = ProxyChannel.toService<IFeedbackService>(
-      channelClient.getChannel(IFeedbackService.channelName),
     );
     this.promptAttachmentTransferService = ProxyChannel.toService<IPromptAttachmentTransferService>(
       channelClient.getChannel(IPromptAttachmentTransferService.channelName),

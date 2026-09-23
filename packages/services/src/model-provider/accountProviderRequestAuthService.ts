@@ -49,7 +49,8 @@ interface AccountProviderRequestAuthServiceOptions {
     providerId: string,
     family: ProviderFamilyDomain,
   ): Promise<string | null>;
-  resolveTeamPlanApiKey(
+  /** Team Plan 动态 Key 依赖官方 Team 查询（A 层已删除）；缺省时该链路 fail-closed。 */
+  resolveTeamPlanApiKey?(
     access: Extract<ZCodeAccountAccess, { planKind: "team-coding-plan" }>,
   ): Promise<string | null>;
 }
@@ -80,7 +81,9 @@ class AccountProviderRequestAuthService implements AccountRequestAuthResolver {
       return { apiKey: requireApiKey(apiKey, providerId) };
     }
 
-    const apiKey = await this.#options.resolveTeamPlanApiKey(access);
+    const apiKey = this.#options.resolveTeamPlanApiKey
+      ? await this.#options.resolveTeamPlanApiKey(access)
+      : null;
     return { apiKey: requireApiKey(apiKey, providerId) };
   }
 

@@ -17,8 +17,6 @@ import {
   resolveAutomaticModelProviderFamilyConnectionSelection,
 } from "@/lib/modelProviderFamilyConnectionSelection.js";
 
-import { getEnterprisePricingProductsOrEmpty } from "@/root/oauthTeamPricing.js";
-
 function resolveModelProviderFamilySpecFromOAuth(
   provider: OAuthProviderId | string,
 ): ReturnType<typeof getModelProviderFamilySpec> | null {
@@ -132,7 +130,7 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
   )
     return null;
 
-  const [codingPlanEntitlement, startPlanEntitlement, teamProducts] = await Promise.all([
+  const [codingPlanEntitlement, startPlanEntitlement] = await Promise.all([
     getUsageEntitlementSnapshotOrNull({
       services: params.services,
       providerId: codingPlanProviderId,
@@ -143,7 +141,6 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
       providerId: startPlanProviderId,
       accountAccess: accesses.get(startPlanProviderId),
     }),
-    getEnterprisePricingProductsOrEmpty(params.services, domain),
   ]);
   // 旧 Start 连接只保留读取，不以权益失效为由删除或自动替换成付费连接。
   const savedSelection = currentSettings.providerFamilyConnectionSelections?.[domain];
@@ -152,7 +149,6 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
     providerFamilyDomain: domain,
     codingPlanEntitlement,
     startPlanEntitlement,
-    teamProducts,
     codingPlanAvailable: states.has(codingPlanProviderId)
       ? states.get(codingPlanProviderId)!.availability === "available"
       : undefined,

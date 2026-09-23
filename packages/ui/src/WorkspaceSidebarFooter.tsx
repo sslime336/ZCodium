@@ -39,11 +39,6 @@ import { useShortcutCommandLabel } from "@/shortcuts/useShortcutBindings.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
 import { normalizeInterfaceMode } from "@/lib/interfaceMode.js";
 import type { Theme } from "@/useTheme.js";
-import {
-  WorkspaceSidebarFooterPlanBadge,
-  WorkspaceSidebarFooterUsageSummaryContent,
-  useWorkspaceSidebarFooterUsageSummaryState,
-} from "@/WorkspaceSidebarFooterUsageSummary.js";
 
 const DESKTOP_ZOOM_MIN_LEVEL = -3;
 const DESKTOP_ZOOM_MAX_LEVEL = 5;
@@ -93,9 +88,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   onThemeChange: (value: string) => void;
   onSettingsButtonClick?: () => void;
   onUsageClick?: () => void;
-  onUpgradeClick?: Parameters<
-    typeof WorkspaceSidebarFooterUsageSummaryContent
-  >[0]["onUpgradeClick"];
   onLogin?: () => void;
   onLogout?: () => void;
   settingsButtonMode?: "settings" | "back";
@@ -119,11 +111,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   const avatarFallbackText = getAvatarFallbackText(user);
   const avatarKey = user?.avatarUrl ?? user?.id ?? "guest";
   const showAuthRestoreLoading = !user && isRestoringOAuthSession;
-  const usageSummaryState = useWorkspaceSidebarFooterUsageSummaryState({
-    enabled: true,
-    workspaceIdentity,
-    workspacePath,
-  });
   const profileContent = (
     <>
       <Avatar key={avatarKey} size="default">
@@ -149,7 +136,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
           <span className="min-w-0 truncate text-ui-base font-semibold text-foreground">
             {profileBadge}
           </span>
-          {user ? <WorkspaceSidebarFooterPlanBadge state={usageSummaryState} /> : null}
         </div>
       </div>
     </>

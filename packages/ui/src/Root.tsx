@@ -11,7 +11,6 @@ import { TooltipProvider } from "@/components/ui/tooltip.js";
 import { Button } from "@/components/ui/button.js";
 import { PlatformProvider } from "@/hooks/usePlatform.js";
 import { ServiceProvider } from "@/hooks/useServices.js";
-import { useDynamicWorkflowAvailabilityLoader } from "@/hooks/useDynamicWorkflowAvailability.js";
 import { DirectoryBrowser } from "@/DirectoryBrowser.js";
 import { useTabPersistence } from "@/hooks/useTabPersistence.js";
 import { useTokenRefresh } from "@/hooks/useTokenRefresh.js";
@@ -19,7 +18,6 @@ import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { SSHDialog } from "@/SSHDialog.js";
 import { SettingsPage } from "@/SettingsPage.js";
-import { CodingPlanUpgradeDialogProvider } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { WelcomeScreen, type LoginCompleteReason } from "@/WelcomeScreen.js";
 import { setDefaultFileDisplayBasePath } from "@/lib/fileDisplay.js";
 import { countAllUnreadTasks } from "@/lib/unreadTaskCount.js";
@@ -116,9 +114,7 @@ export function Root(props: RootProps) {
                   <AssistantCodeCommentFeatureProvider
                     enabled={props.assistantCodeCommentCardsEnabled}
                   >
-                    <CodingPlanUpgradeDialogProvider>
-                      <RootInner {...props} />
-                    </CodingPlanUpgradeDialogProvider>
+                    <RootInner {...props} />
                   </AssistantCodeCommentFeatureProvider>
                 </DiffsWorkerPoolProvider>
               </TabStoreProvider>
@@ -155,11 +151,6 @@ function RootInner({
       setMcpStorePlatform(null);
     };
   }, [isDesktop, platform]);
-
-  // 动态工作流灰度快照的唯一取数点：
-  // 放在 app 级 ServiceProvider 这一层取一次，自动化页与 run 面板只读。消费方可能位于
-  // 工作区级 ServiceProvider 内（远程 Host 的 accessor），由它们取数会拿到另一台 Host 的答案。
-  useDynamicWorkflowAvailabilityLoader(services.codingPlanSubscriptionService);
 
   const { intl, locale } = useZCodeIntl();
   const theme = useZCodeStore((state) => state.theme);
@@ -214,7 +205,6 @@ function RootInner({
   const [isBootstrappingInitialWorkspace, setIsBootstrappingInitialWorkspace] = useState(
     Boolean(initialWorkspaceAbsPath),
   );
-  const acknowledgingReleaseNotesVersionRef = useRef<string | null>(null);
   const previousRemoteConnectionInProgressRef = useRef(false);
   const didRequestFallbackWorkspaceRef = useRef(false);
   const rootInnerMountedRef = useRef(true);
@@ -588,7 +578,6 @@ function RootInner({
     remoteWorkspaceErrorByWorkspaceKey,
     totalUnreadTaskCount,
     hasCompletedFullTabRestore: hasCompletedFullRestore,
-    intl,
     isRestoringOAuthSession: isResolvingStartupAuthState || providerStartupSyncPending,
   });
 
@@ -628,44 +617,6 @@ function RootInner({
     markOAuthSuccess,
     onReauthenticationRequired: handleReauthenticationRequired,
   });
-
-  useEffect(
-    () =>
-      platform.onPostUpdateReleaseNotes((payload) => {
-        logger.info("[Root] 收到更新说明，改为静默确认", {
-          version: payload.version,
-          title: payload.title,
-        });
-        if (acknowledgingReleaseNotesVersionRef.current === payload.version) {
-          return;
-        }
-
-        // 自动更新每次命中待展示 release notes 都会走到这里，
-        // 之前 Root 会立刻把 payload 送进对话框状态，导致用户每次更新都被强制弹窗打断。
-        // 这次需求只移除弹窗本身，因此这里改成收到后直接静默 ack，
-        // 既不影响“更新已下载”按钮/菜单/安装链路，也避免 pending 状态残留到下次启动后再次触发。
-        acknowledgingReleaseNotesVersionRef.current = payload.version;
-        void platform
-          .acknowledgePostUpdateReleaseNotes(payload.version)
-          .then(() => {
-            logger.info("[Root] 更新说明已静默确认", {
-              version: payload.version,
-            });
-          })
-          .catch((error) => {
-            logger.error("[Root] 更新说明静默确认失败", {
-              version: payload.version,
-              error,
-            });
-          })
-          .finally(() => {
-            if (acknowledgingReleaseNotesVersionRef.current === payload.version) {
-              acknowledgingReleaseNotesVersionRef.current = null;
-            }
-          });
-      }),
-    [platform],
-  );
 
   const canEnterNativeThemeSyncSurface = Boolean(
     !isStartupRenderBlocked &&
@@ -949,7 +900,6 @@ function RootInner({
         ) : (
           <RootWorkspaceContent
             workspaceScopedServices={workspaceScopedServices}
-            baseFeedbackService={services.feedbackService}
             workspaceShellPath={workspaceShellPath}
             workspaceIdentity={workspaceShellIdentity}
             workspaceRemoteSessionId={workspaceShellRemoteSessionId}

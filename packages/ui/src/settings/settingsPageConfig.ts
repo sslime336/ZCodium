@@ -157,12 +157,6 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     titleId: "settings.usageTitle",
     groupId: "dataAndStats",
   },
-  {
-    id: "officialServices",
-    icon: ShieldCheck,
-    titleId: "settings.officialServicesTitle",
-    groupId: "dataAndStats",
-  },
 ];
 
 // 兼容既有只读消费者：默认配置代表不带桌面平台能力的 Web 视图；

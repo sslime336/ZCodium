@@ -137,7 +137,6 @@ export { importLegacyPersonalProviderConfig } from "./model-provider/legacyPerso
 export {
   createAccountProviderConfigSource,
   createAccountProviderConnectionResolver,
-  createCodingPlanFamilyAvailabilityResolver,
   resolveCurrentAccountAccess,
 } from "./model-provider/accountProviderConnectionResolver.js";
 export { bindAccountProviderInvalidation } from "./model-provider/accountProviderInvalidation.js";
@@ -145,9 +144,6 @@ export type {
   AccountProviderConfigSourceOptions,
   AccountProviderConnectionResolverOptions,
   AccountProviderConnectionSettings,
-  AccountProviderFamilyAvailabilityInput,
-  AccountProviderFamilyAvailabilityResolver,
-  CodingPlanFamilyAvailabilityResolverOptions,
 } from "./model-provider/accountProviderConnectionResolver.js";
 export {
   createProviderConfigRuntime,
@@ -184,7 +180,6 @@ export {
 export { createAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
 export type { IAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
 export { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
-export { resolveAccountTeamPlanRuntimeApiKey } from "./model-provider/accountProviderTeamPlanRequestKey.js";
 export { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
 export { createUsageStatsService } from "./usage-stats/usageStatsService.js";
 // Storage：service 与 adapters 工厂；desktop host 负责组装（Worker runner 在 desktop 包内）
@@ -203,9 +198,6 @@ export {
 } from "./storage/adapters/rootsResolver.js";
 export { createFsVolumeProbe } from "./storage/adapters/volumeProbe.js";
 export { runStorageScan } from "./storage/adapters/inProcessScanRunner.js";
-export { createCodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscriptionService.js";
-export { createClientConfigService } from "./client-config/clientConfigService.js";
-export { createClientScenesService } from "./client-scenes/clientScenesService.js";
 export { createSkillsService } from "./skills/skillsService.js";
 export { createSkillSyncService } from "./skill-sync/skillSyncService.js";
 export { createMcpSyncService } from "./mcp-sync/mcpSyncService.js";
@@ -217,14 +209,7 @@ export { createCommandsService } from "./commands/commandsService.js";
 export { createHooksService } from "./hooks/hooksService.js";
 export { createMemoryService } from "./memory/memoryService.js";
 export { createSettingsSyncService } from "./settings-sync/settingsSyncService.js";
-export { createFeedbackDiagnosticArchive } from "./feedback/feedbackLogArchive.js";
-export { createFeedbackService } from "./feedback/feedbackService.js";
-export type { CreateFeedbackServiceOptions } from "./feedback/feedbackService.js";
 export { createLocalPromptAttachmentTransferService } from "./prompt-attachment-transfer/promptAttachmentTransferService.js";
-export {
-  createLocalConversationShareArtifactSource,
-  createRemoteConversationShareArtifactSource,
-} from "./conversation-share/conversationShareArtifactSource.js";
 export { createNodeApiClient, NodeApiClient } from "./providers/api/nodeApiClient.js";
 export {
   createHostApiNetworkTransport,
@@ -268,11 +253,6 @@ export {
 } from "./session/offPeakRuntimeModel.js";
 export { createServiceLogger } from "./logger/serviceLogger.js";
 export {
-  buildOfficialMcpAuthHeaders,
-  createOfficialMcpAuthHeadersResolver,
-  resolveOfficialMcpCredentials,
-} from "./official-mcp/officialMcpCredentials.js";
-export {
   computeAutomationNextRunAt,
   computeNextRunAt,
   computeScheduleRuleNextRunAt,
@@ -295,22 +275,9 @@ import { IZCodeTaskService } from "./session/zcodeTaskService.js";
 import { IZCodeAgentService } from "./zcode-agent/zcodeAgent.js";
 import type { CuaOperationStateReporter } from "./zcode-agent/cuaOperationTurnTracker.js";
 import { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
-import {
-  createUnsupportedConversationShareService,
-  IConversationShareService,
-  type IConversationShareService as IConversationShareServiceType,
-} from "./conversation-share/conversationShare.js";
-import {
-  ConversationShareService,
-  conversationShareConnectionScopeFactory,
-} from "./conversation-share/conversationShareService.js";
-import { createLocalConversationShareArtifactSource } from "./conversation-share/conversationShareArtifactSource.js";
-import { ConversationShareHttpClient } from "./conversation-share/conversationShareHttpClient.js";
 import { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
 import { IOAuthService } from "./oauth/oauth.js";
 import { IUsageStatsService } from "./usage-stats/usageStats.js";
-import { ICodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscription.js";
-import { IClientScenesService } from "./client-scenes/clientScenes.js";
 import { ISkillsService } from "./skills/skills.js";
 import { ISkillSyncService } from "./skill-sync/skillSync.js";
 import { IMcpSyncService } from "./mcp-sync/mcpSync.js";
@@ -322,7 +289,6 @@ import { ICommandsService } from "./commands/commands.js";
 import { IHooksService } from "./hooks/hooks.js";
 import { IMemoryService } from "./memory/memory.js";
 import { ISettingsSyncService } from "./settings-sync/settingsSync.js";
-import { IFeedbackService } from "./feedback/feedback.js";
 import { IPromptAttachmentTransferService } from "./prompt-attachment-transfer/promptAttachmentTransfer.js";
 import { createFileService } from "./file/fileService.js";
 import { createMediaPreviewService } from "./media-preview/mediaPreview.js";
@@ -352,13 +318,11 @@ import { isCurrentOAuthCredentialRequest } from "#src/oauth/oauthUnauthorizedReq
 import { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
 import { OAuthCredentialRepo } from "./oauth/repo/oauthCredentialRepo.js";
 import { readLegacyZCodeConfigProviders } from "./model-provider/legacyZCodeConfigProviderReader.js";
-import { resolveAccountTeamPlanRuntimeApiKey } from "./model-provider/accountProviderTeamPlanRequestKey.js";
 import { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
 import { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
 import { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
 import {
   createAccountProviderConfigSource,
-  createCodingPlanFamilyAvailabilityResolver,
   resolveCurrentAccountAccess,
 } from "./model-provider/accountProviderConnectionResolver.js";
 import { bindAccountProviderInvalidation } from "./model-provider/accountProviderInvalidation.js";
@@ -384,17 +348,12 @@ import {
 } from "./model-provider/providerProvisioningSource.js";
 import { createProviderProvisioningTarget } from "./model-provider/providerProvisioningTarget.js";
 import { IProviderProvisioningTargetService } from "./model-provider/providerProvisioning.js";
-import { buildOffPeakModelSelectionView } from "./model-provider/offPeakModelSelectionView.js";
 import { resolveClientConfigPlatform } from "./runtime-tools/clientPlatform.js";
 import {
   createAccountRequestAuthService,
   type IAccountRequestAuthService,
 } from "./model-provider/accountRequestAuthService.js";
 import { createUsageStatsService } from "./usage-stats/usageStatsService.js";
-import { createCodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscriptionService.js";
-import { createClientConfigService } from "./client-config/clientConfigService.js";
-import { IClientConfigService } from "./client-config/clientConfig.js";
-import { createClientScenesService } from "./client-scenes/clientScenesService.js";
 import { createSkillsService } from "./skills/skillsService.js";
 import { createSkillSyncService } from "./skill-sync/skillSyncService.js";
 import { createMcpSyncService } from "./mcp-sync/mcpSyncService.js";
@@ -406,10 +365,6 @@ import { createCommandsService } from "./commands/commandsService.js";
 import { createHooksService } from "./hooks/hooksService.js";
 import { createMemoryService } from "./memory/memoryService.js";
 import { createSettingsSyncService } from "./settings-sync/settingsSyncService.js";
-import {
-  createFeedbackService,
-  type CreateFeedbackServiceOptions,
-} from "./feedback/feedbackService.js";
 import { createLocalPromptAttachmentTransferService } from "./prompt-attachment-transfer/promptAttachmentTransferService.js";
 import { createNodeApiClient } from "./providers/api/nodeApiClient.js";
 import {
@@ -439,14 +394,6 @@ import {
   resolveOffPeakCodingPlanSupport,
   resolveOffPeakMockUpstream,
 } from "./session/offPeakRuntimeModel.js";
-import {
-  createOfficialMcpAuthHeadersResolver,
-  resolveOfficialMcpCredentials,
-} from "./official-mcp/officialMcpCredentials.js";
-import {
-  createOfficialMcpTrustedOriginRegistry,
-  OFFICIAL_MCP_DEV_TRUSTED_ORIGINS_ENV,
-} from "@zcode/shared";
 import {
   BROKER_SOCKET_ENV,
   BROKER_UNAVAILABLE_ENV,
@@ -518,14 +465,6 @@ import {
   ZCODE_ENV,
   buildRuntimeZCodeApiUrl,
 } from "@zcode/shared";
-
-// 这些 conversation-share 实现依赖 Node 文件系统；仅通过 @zcode/services/node 暴露，
-// 防止 browser-safe 根入口把 node:* 依赖带进 renderer。
-export {
-  ConversationShareService,
-  ConversationShareHttpClient,
-  conversationShareConnectionScopeFactory,
-};
 
 interface ServiceWithDisposeAll {
   disposeAll: () => void;
@@ -1286,9 +1225,6 @@ export function createLocalServices(options: {
   hostApiNetworkTransport?: HostApiNetworkTransport;
   /** Desktop Host 请求 Main 登记 Agent 已授权的精确本地视频路径。 */
   authorizeLocalMediaPreviewPath?: (path: string) => Promise<string>;
-  feedback?: Partial<
-    Omit<CreateFeedbackServiceOptions, "apiClient" | "credentialService" | "oauthService">
-  >;
   processLifecycleReporter?: RuntimeProcessLifecycleReporter;
   taskRuntimeReporter?: RuntimeTaskReporter;
   /** workspace 文件搜索默认使用内置过滤器；后续规则来源只需在 Host 装配时注入最终实现。 */
@@ -1498,8 +1434,6 @@ export function createLocalServices(options: {
           accountIdentity,
         });
       },
-      resolveTeamPlanApiKey: (access) =>
-        resolveAccountTeamPlanRuntimeApiKey({ apiClient, credentialService, access }),
     }),
   );
   const providerConfigLog = createServiceLogger("provider-config");
@@ -1550,20 +1484,7 @@ export function createLocalServices(options: {
   const accountProviderConfigSource = createAccountProviderConfigSource({
     configSource: providerConfigRuntime.configService,
     readSettings: readAccountProviderSettings,
-    async loadCodingPlanApiKey(providerId, family, accountIdentity, forceRefresh) {
-      if (isStartPlanModelProviderId(providerId)) return null;
-      return accountProviderCredentialService.loadCodingPlanApiKey({
-        providerId,
-        family,
-        accountIdentity,
-        forceRefresh,
-      });
-    },
     loadAccountIdentity,
-    resolveFamilyAvailability: createCodingPlanFamilyAvailabilityResolver({
-      apiClient,
-      credentialService,
-    }),
   });
   const accountProviderRuntimeLog = createServiceLogger("account-provider-runtime");
   const modelSelectionConfiguredDefaultSource = new NodeModelSelectionConfigRepository({
@@ -1631,18 +1552,6 @@ export function createLocalServices(options: {
     accountProviderCredentialStore,
     refreshAccountProviders: (reason: string) => accountProviderConfigSource.refresh(reason),
   });
-  // 官方 Server MCP 的凭证解析源。MCP 调用的身份头与 MCP 额度查询（/api/v1/mcp/usage）
-  // 必须共用这一份实现，否则两处对"当前选中的 Coding Plan 连接"的判定会分叉。
-  // 额度侧注入的是凭证解析而非 resolveHeaders：归属校验需要 providerFamily，
-  // 而身份头里没有 family；身份头仍由同一个 buildOfficialMcpAuthHeaders 构造。
-  const officialMcpCredentialSource = {
-    resolve: () =>
-      resolveOfficialMcpCredentials({
-        accountRequestAuthService,
-        credentialService,
-        modelSelectionService: providerRuntime.modelSelection,
-      }),
-  };
   // mcpSync/hooks 里引用 zcodeAgentService 的闭包是惰性调用，声明顺序不影响初始化。
   const skillsService = createSkillsService({ isDesktopRuntime: true });
   const mcpSyncService = createMcpSyncService({
@@ -2051,23 +1960,15 @@ export function createLocalServices(options: {
       }
     },
   };
-  const codingPlanSubscriptionService = createCodingPlanSubscriptionService({
-    apiClient,
-    credentialService,
-    resolveOffPeakModelSelectionView: async () => {
-      await providerRuntime.start();
-      return buildOffPeakModelSelectionView(providerRuntime.registryService.getView());
-    },
-  });
   // OffPeakTaskService 单例在下方 DI register IIFE 中创建（晚于 agent service）；
-  // 用前向引用 holder 惰性绑定——offPeak/create 协议请求只会发生在服务集合装配完成后。
+  // 用前向引用 holder 惰性绑定——offPeak/list 协议请求只会发生在服务集合装配完成后。
+  // 官方 Coding Plan 灰度与动态工作流远端配置来源已删除，agent 侧不再注入两者。
   let offPeakTaskServiceForAgent: OffPeakTaskService | undefined;
   // desktop-attached-remote 装配不暴露 Off-Peak 工具面（远程不在支持范围）。
   const offPeakToolWiring =
     options?.serviceAuthorityMode === "desktop-attached-remote"
       ? {}
       : {
-          resolveOffPeakClientConfig: () => codingPlanSubscriptionService.getOffPeakClientConfig(),
           resolveOffPeakTaskService: () => offPeakTaskServiceForAgent,
         };
   const zcodeAgentService = createZCodeAgentService({
@@ -2078,11 +1979,6 @@ export function createLocalServices(options: {
     ...(modelSelectionReadinessSource ? { modelSelectionReadinessSource } : {}),
     authorizeLocalMediaPreviewPath: options?.authorizeLocalMediaPreviewPath,
     ...offPeakToolWiring,
-    // 动态工作流灰度：与 Off-Peak 不同，
-    // 这里不按 serviceAuthorityMode 裁剪——SSH/WSL/Docker 的 desktop-attached-remote Host
-    // 是它自己那些 workspace 的唯一裁决者，灰度开启时远程 workspace 同样提供工作流。
-    resolveDynamicWorkflowClientConfig: () =>
-      codingPlanSubscriptionService.getDynamicWorkflowClientConfig(),
     commandResolver: options?.zcodeAgentCommandResolver,
     presentationSurface: resolveZCodeAgentPresentationSurface({
       runtimeSurface: options?.agentRuntimeContext?.runtimeSurface,
@@ -2097,22 +1993,6 @@ export function createLocalServices(options: {
     spawnFallbackCwd: options?.zcodeAgentSpawnFallbackCwd,
     // browser-use：host→main 执行桥透传给 agent service 的 onRequest browserExecute 路由。
     browserControlExecutor: options?.browserControlExecutor,
-    // 官方 Server MCP 身份头：host 是唯一身份权威，Agent 经反向请求索取。
-    // Provider 存在性读取正式 Model Selection View；不恢复旧 Provider Snapshot。
-    officialMcpAuthHeadersResolver: createOfficialMcpAuthHeadersResolver({
-      accountRequestAuthService,
-      credentialService,
-      modelSelectionService: providerRuntime.modelSelection,
-    }),
-    // host 是身份权威边界：provenance/origin 必须在这里再校验一次，不能只依赖 agent
-    // adapter 的 fetch wrapper。判定实现与 CLI 侧共用 @zcode/shared 的同一份，避免分叉。
-    // origin 解析复用 resolveCurrentZCodeEndpointOrigin——与闲时任务同口径（含 settings
-    // 覆盖），否则会出现"闲时任务能连、官方 MCP 连不上"。
-    // dev 开关必须同样传入，否则本地自测会被 host 单方面拒绝。
-    officialMcpTrustedOrigins: createOfficialMcpTrustedOriginRegistry({
-      devTrustedOriginsRaw: process.env[OFFICIAL_MCP_DEV_TRUSTED_ORIGINS_ENV],
-      resolveZCodeApiOrigin: resolveCurrentZCodeEndpointOrigin,
-    }),
     cuaOperationStateReporter: shouldEnableCuaOperationStateReporter({
       serviceAuthorityMode: options?.serviceAuthorityMode,
       hasReporter: Boolean(options?.cuaOperationStateReporter),
@@ -2372,30 +2252,6 @@ export function createLocalServices(options: {
     authorizeLocalMediaPreviewPath: options?.authorizeLocalMediaPreviewPath,
     createLocalMediaPreviewUrl: buildLocalMediaPreviewUrl,
   });
-  const conversationShareClient = new ConversationShareHttpClient({
-    // 分享运行时始终走真实 API；测试/Mock 场景应在 service 单测或 Web fixture 中显式注入，
-    // 不能让开发环境默认生成仅存在于进程内存的 mock-share 链接。
-    apiClient,
-    baseUrl: buildRuntimeZCodeApiUrl(process.env, "/api/v1"),
-    tokenProvider: async (): Promise<string | null> => {
-      const activeProvider = await oauthCredentialRepo.getActiveProvider();
-      if (!activeProvider) {
-        return null;
-      }
-      const tokenSet = await oauthCredentialRepo.loadTokenSet(activeProvider);
-      return tokenSet?.zcodeJwtToken ?? tokenSet?.accessToken ?? null;
-    },
-  });
-  const conversationShareService: IConversationShareServiceType = isDesktopAttachedRemote
-    ? createUnsupportedConversationShareService({
-        message: "Conversation publishing is not available for remote workspaces",
-      })
-    : new ConversationShareService({
-        zcodeAgentService,
-        zcodeSessionService,
-        client: conversationShareClient,
-        artifactSource: createLocalConversationShareArtifactSource(),
-      });
   // 注册链上的懒工厂（如 OffPeak）会各自创建 tasks-index sqlite repo；先收集到本数组，
   // services 集合建好后在 return 前统一登记进 sharedSqliteRepos 侧表
   const sqliteReposToClose: Array<{ close(): void }> = [];
@@ -2415,7 +2271,6 @@ export function createLocalServices(options: {
     .register(IZCodeSessionService, zcodeSessionService)
     .register(ICuaPermissionService, cuaPermissionService)
     .register(ICuaPipSessionService, cuaPipSessionService)
-    .register(IConversationShareService, conversationShareService)
     .register(IFileWatcherService, createFileWatcherService())
     .register(IOAuthService, oauthService)
     .register(
@@ -2425,22 +2280,8 @@ export function createLocalServices(options: {
         accountRequestAuthService,
         credentialService,
         zcodeAgentService,
-        officialMcpCredentialSource,
       }),
     )
-    .register(ICodingPlanSubscriptionService, codingPlanSubscriptionService)
-    .register(
-      IClientConfigService,
-      createClientConfigService({
-        apiClient,
-        resolveRequestContext: async () => ({
-          endpointOrigin: await resolveCurrentZCodeEndpointOrigin(),
-          appVersion: ZCODE_VERSION,
-          platform: `${process.platform}-${process.arch}`,
-        }),
-      }),
-    )
-    .register(IClientScenesService, createClientScenesService({ apiClient }))
     .register(
       IOffPeakTaskService,
       (() => {
@@ -2541,15 +2382,6 @@ export function createLocalServices(options: {
     )
     .register(IMemoryService, createMemoryService())
     .register(ISettingsSyncService, createSettingsSyncService({ settingService }))
-    .register(
-      IFeedbackService,
-      createFeedbackService({
-        ...options?.feedback,
-        apiClient,
-        credentialService,
-        oauthService,
-      }),
-    )
     .register(IPromptAttachmentTransferService, createLocalPromptAttachmentTransferService());
 
   // 即使初始配置关闭也必须登记 lifecycle disposer：terminal fence 需要早于任意延迟 setting/acquire

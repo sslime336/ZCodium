@@ -1,12 +1,8 @@
 import type { IServiceAccessor, ProviderSettingsView } from "@zcode/services";
 import type { ProviderFamilyConnectionSelection } from "@zcode/shared";
 import type { AccountConnectionLoss } from "@/root/accountConnectionRefreshObserver.js";
-import {
-  resolveFirstSubscribedTeamPlanConnectionWithContext,
-  resolveModelProviderFamilyConnectionProviderId,
-} from "@/lib/modelProviderFamilyConnectionSelection.js";
+import { resolveModelProviderFamilyConnectionProviderId } from "@/lib/modelProviderFamilyConnectionSelection.js";
 import { hasActiveUsageEntitlementSnapshot } from "@/lib/codingPlanProvider.js";
-import { getEnterprisePricingProducts } from "@/root/oauthTeamPricing.js";
 import { logger } from "@/logger.js";
 
 /** 只计算建议，不替用户保存；闭包固定按钮展示的那个目标，点击时重新校验。 */
@@ -70,29 +66,6 @@ export async function prepareAccountConnectionSwitch(
   let label: string | undefined;
   if (await isAvailable({ kind: "individual-coding-plan" }, view))
     selection = { kind: "individual-coding-plan" };
-  if (!selection) {
-    const pricing = await getEnterprisePricingProducts(services, family);
-    if (pricing.status === "success") {
-      for (const product of pricing.productList) {
-        const contexts = product.teamProjects?.length ? product.teamProjects : [product];
-        for (const context of contexts) {
-          const candidate = resolveFirstSubscribedTeamPlanConnectionWithContext({
-            teamProducts: [{ ...product, teamProjects: [], ...context }],
-          });
-          if (!candidate || JSON.stringify(candidate) === JSON.stringify(original)) continue;
-          if (await isAvailable(candidate, view)) {
-            selection = candidate;
-            label =
-              context.organizationName?.trim() ||
-              context.projectName?.trim() ||
-              candidate.organizationId;
-            break;
-          }
-        }
-        if (selection) break;
-      }
-    }
-  }
   if (!selection || !event.isCurrent()) return null;
   const target = selection;
   let running = false;
