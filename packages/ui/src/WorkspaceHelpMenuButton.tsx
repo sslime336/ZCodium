@@ -1,6 +1,5 @@
 import {
   DesktopCommandIds,
-  ZCODIUM_ISSUES_URL,
   TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER,
   TID_WORKSPACE_HELP_MENU_TRIGGER,
 } from "@zcode/shared";
@@ -24,7 +23,7 @@ import { cn } from "@/components/lib/utils.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { createHelpMenuActionHandlers } from "@/lib/helpMenuActions.js";
+import { createHelpMenuActionHandlers, ZCODIUM_ISSUES_URL } from "@/lib/helpMenuActions.js";
 
 export function WorkspaceHelpMenuButton({
   className,

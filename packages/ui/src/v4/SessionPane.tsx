@@ -13,7 +13,6 @@ import {
 } from "react";
 import { Hand } from "lucide-react";
 import {
-  BUILTIN_MODEL_PROVIDER_IDS,
   buildCustomSupplierKey,
   TID_CHAT_EMPTY,
   TID_V4_SESSION_PANE,
@@ -1678,13 +1677,8 @@ export function SessionPane({
 
       const fromProvider = resolveProviderLabel(fromProviderId, modelSelectionView);
       const toProvider = resolveProviderLabel(targetModel.provider, modelSelectionView);
-      const fromModel = formatModelChangeLabel(fromProviderId, fromProvider, fromModelId, intl);
-      const toModel = formatModelChangeLabel(
-        targetModel.provider,
-        toProvider,
-        targetModel.model,
-        intl,
-      );
+      const fromModel = formatModelChangeLabel(fromProviderId, fromProvider, fromModelId);
+      const toModel = formatModelChangeLabel(targetModel.provider, toProvider, targetModel.model);
       toast(intl.formatMessage({ id: "chat.modelChangeNotice.changed" }, { fromModel, toModel }));
     },
     [intl, modelSelectionView, sessionId],
