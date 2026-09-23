@@ -68,26 +68,5 @@ export function normalizeSettingsPatch(patch: Partial<AppSettings>): Partial<App
       trimmedHttpProxyCaCertPath.length > 0 ? trimmedHttpProxyCaCertPath : undefined;
   }
 
-  if (
-    "zcodeEndpointOrigin" in normalizedPatch &&
-    typeof normalizedPatch.zcodeEndpointOrigin === "string"
-  ) {
-    // 非生产 endpoint override 需要支持 Reset 清空；RPC/JSON 对 undefined 不稳定时，用空串也能回到默认生产域。
-    const trimmedZCodeEndpointOrigin = normalizedPatch.zcodeEndpointOrigin.trim();
-    normalizedPatch.zcodeEndpointOrigin =
-      trimmedZCodeEndpointOrigin.length > 0 ? trimmedZCodeEndpointOrigin : undefined;
-  }
-
-  if (
-    "providerFamilyDomain" in normalizedPatch &&
-    typeof normalizedPatch.providerFamilyDomain === "string"
-  ) {
-    // 退出/解绑当前 provider family 时需要清空运行域。
-    // RPC 传输会吞掉 undefined，这里把空串归一成 undefined，避免旧选择继续影响 registry 过滤。
-    const trimmedProviderFamilyDomain = normalizedPatch.providerFamilyDomain.trim();
-    normalizedPatch.providerFamilyDomain =
-      trimmedProviderFamilyDomain.length > 0 ? normalizedPatch.providerFamilyDomain : undefined;
-  }
-
   return normalizedPatch;
 }
