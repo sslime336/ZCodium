@@ -67,7 +67,6 @@ interface RemoteConnectionOpenPreference {
  * Root —— 应用根组件
  *
  * 外层挂载 StoreProvider（连接广播服务）+ TabStoreProvider，内层处理路由。
- * 登录体系已删除（Layer C）：启动直接进入 workspace shell，不再有 WelcomeScreen 门禁。
  */
 export function Root(props: RootProps) {
   return (

@@ -224,7 +224,6 @@ function resolveRemoteAssetCacheDir(localEnv: LocalRuntimeEnv = {}): string {
 }
 
 export function resolveRemoteAssetDirs(localEnv: LocalRuntimeEnv = {}): RemoteAssetDirs {
-  // 官方 CDN 下载链路已随 harness 化删除（remoteCdn.ts）。
   // 开发态仅保留仓库内 mock-cdn 作为可选离线缓存；生产态只保留本地缓存目录，
   // 不再暴露任何安装包内 remote-assets 路径或远端下载地址。
   const developmentMockCdnDir = isElectronAppPackaged()

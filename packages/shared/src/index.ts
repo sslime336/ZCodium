@@ -8,7 +8,6 @@ export type {
   WorkspaceFileEntry,
   SystemInfo,
   AppSettings,
-  ElectronReleaseChannel,
   IntegratedTerminalShellDialect,
   IntegratedTerminalShellOption,
   IntegratedTerminalShellSelection,
