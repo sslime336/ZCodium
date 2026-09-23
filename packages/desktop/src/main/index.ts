@@ -94,10 +94,8 @@ import {
 import { resolveZCodeBuiltinProviderConfigFilePath } from "./desktopProviderConfig.js";
 import {
   getCredentialsDir,
-  listSSHConfigAliases,
   loadHostProcessEnvFromLocalFiles,
   resolveBundledGlmBinaryPath,
-  resolveRemoteAssetDirs,
   runtimeApplicationName,
   runtimeHomePath,
   runtimeSessionDataPath,
@@ -128,10 +126,9 @@ import {
   extractOpenWorkspacePathFromArgs,
   isWorkspaceOpenUrl,
 } from "./desktopDeepLinkUrl.js";
-import { createRemoteWorkspaceSessionManager } from "./desktopRemoteSessions.js";
 import { setBrowserUseGuestWebContentsIdsProvider } from "./resourceManagerWindow.js";
 import { registerPlatformIpcHandlers } from "./desktopMainIpcPlatform.js";
-import { registerRemoteIpcHandlers } from "./desktopMainIpcRemote.js";
+import { registerShellIpcHandlers } from "./desktopMainIpcShell.js";
 import { applyDesktopChromiumNetworkPolicies } from "./desktopNetworkPolicy.js";
 import { snapshotWindowsPackagedResources } from "./windowsInstallResourceLocks.js";
 registerLocalMediaPreviewScheme(protocol);
@@ -543,12 +540,6 @@ app.on("browser-window-created", (_event, win) => {
   win.once("closed", () => cuaPipFocusRouter.removeWindow(windowKey));
 });
 
-const remoteSessionManager = createRemoteWorkspaceSessionManager({
-  logger,
-  windowHostProcessMap,
-  resolveRemoteAssetDirs: () => resolveRemoteAssetDirs(hostProcessLocalEnv),
-});
-
 const deviceMid = ensureDesktopDeviceMidSync();
 
 function extractOpenWorkspacePathFromDeepLinkUrl(url: string): string | null {
@@ -687,9 +678,6 @@ async function prepareAppQuit(reason: string): Promise<void> {
         logger.warn(`[app-quit] cron scheduler dispose failed (${reason}):`, error);
       }
     })(),
-    // remote session、attachment 和 transport 都由窗口 Host 持有；这里先清理
-    // Main 的请求关联，再由下方每窗口唯一 Host 的 shutdown barrier 释放真实连接与 Agent。
-    remoteSessionManager.disposeAllAndWaitForAppShutdown(reason),
     ...hostProcesses.map((child, index) =>
       disposeHostProcessAndWait(
         child,
@@ -983,10 +971,6 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
           ? activeAppShutdownPolicy.forceKillDelayMs
           : forceKillDelayMs,
       ),
-    disposeRemoteWorkspaceSessionsForWindow:
-      remoteSessionManager.disposeRemoteWorkspaceSessionsForWindow,
-    reattachRemoteWorkspaceSessionsForWindow:
-      remoteSessionManager.reattachRemoteWorkspaceSessionsForWindow,
     bootstrap: {
       restoreSession: startupBootstrap.restoreSession,
       initialWorkspacePath: startupBootstrap.initialWorkspacePath,
@@ -1269,15 +1253,8 @@ app.whenReady().then(async () => {
     setShortcutRecordingActive,
     deviceMid,
   });
-  registerRemoteIpcHandlers({
+  registerShellIpcHandlers({
     logger,
-    createRemoteWorkspaceSession: remoteSessionManager.createRemoteWorkspaceSession,
-    disposeRemoteWorkspaceSession: remoteSessionManager.disposeRemoteWorkspaceSession,
-    cancelPendingRemoteWorkspaceSessionsForWindow:
-      remoteSessionManager.cancelPendingRemoteWorkspaceSessionsForWindow,
-    bindRemoteWorkspaceSessionContext: remoteSessionManager.bindRemoteWorkspaceSessionContext,
-    confirmRendererAttachmentReady: remoteSessionManager.confirmRendererAttachmentReady,
-    listSSHConfigAliases,
   });
 
   logger.info("[startup] 创建主窗口");

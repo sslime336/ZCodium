@@ -37,8 +37,6 @@ export function createWindow(options: {
     label: string,
     forceKillDelayMs?: number,
   ) => void;
-  disposeRemoteWorkspaceSessionsForWindow: (windowId: number, reason: string) => void;
-  reattachRemoteWorkspaceSessionsForWindow: (win: BrowserWindow, reason: string) => void;
   bootstrap?: WindowBootstrapOptions;
   agentWarmupTargets?: readonly StartupWorkspaceWarmupTarget[];
   agentSpawnFallbackCwd: string;
@@ -124,7 +122,7 @@ export function createWindow(options: {
     // 曾经无条件杀掉旧 host 进程再重建——host 连带 CLI agent 一起死，运行中的会话直接消失，
     // 这正是「会话身份易失」病根。host/CLI 的生命周期属于窗口而非
     // renderer 加载周期：reload 只需给存活的 host 补挂一条新 RPC MessagePort
-    // （复用 web 远控的 AttachServicePort 通道），renderer 重新订阅即可恢复投影。
+    // （AttachServicePort 通道），renderer 重新订阅即可恢复投影。
     // 旧端口的 ChannelServer 会随 renderer 上下文销毁触发 close 自行回收。
     if (oldChild && oldChild.pid !== undefined) {
       try {
@@ -145,7 +143,6 @@ export function createWindow(options: {
         options.logger.info(
           `[createWindow] renderer reloaded, reattached to existing host (${label}), pid=${oldChild.pid}`,
         );
-        options.reattachRemoteWorkspaceSessionsForWindow(win, `${label}:renderer-reload`);
         return;
       } catch (error) {
         options.logger.warn(
@@ -181,7 +178,6 @@ export function createWindow(options: {
       });
       options.windowHostProcessMap.set(wcId, child);
       options.onHostProcessReady?.(wcId);
-      options.reattachRemoteWorkspaceSessionsForWindow(win, `${label}:renderer-ready`);
     };
 
     if (!options.runtimeProcessEnvPatchPromise) {
@@ -242,7 +238,6 @@ export function createWindow(options: {
       options.disposeHostProcess(child, `${label}:window-closed`);
       options.windowHostProcessMap.delete(wcId);
     }
-    options.disposeRemoteWorkspaceSessionsForWindow(wcId, `${label}:window-closed`);
   });
 
   return win;

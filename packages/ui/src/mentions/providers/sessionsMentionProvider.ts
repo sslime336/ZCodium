@@ -18,7 +18,7 @@ import {
   resolveWorkspaceServices,
   type WorkspaceServiceResolverState,
 } from "@/lib/workspaceServiceResolver.js";
-import { useRemoteWorkspaceSessionStore } from "@/store/remoteWorkspaceSessionStore.js";
+import { useRemoteWorkspaceSessionStore } from "@/store/workspaceServicesRegistry.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab, type WorkspaceTabState } from "@/store/tabStore.js";
 import {

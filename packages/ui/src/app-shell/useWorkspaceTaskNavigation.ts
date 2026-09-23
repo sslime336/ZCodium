@@ -21,7 +21,7 @@ import {
   useTaskQueryCacheStore,
 } from "@/store/taskQueryCacheStore.js";
 import { taskNavigationTargetExists } from "@/lib/taskNavigationTarget.js";
-import { getRemoteWorkspaceSession } from "@/store/remoteWorkspaceSessionStore.js";
+import { getRemoteWorkspaceSession } from "@/store/workspaceServicesRegistry.js";
 import { useTabStoreApi } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab } from "@/store/tabStore.js";
 import { bumpTaskListMembershipVersion } from "@/v4/taskListMembershipVersion.js";

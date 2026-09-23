@@ -16,7 +16,7 @@ import {
   markTaskQueryCacheScopesStale,
   useTaskQueryCacheStore,
 } from "@/store/taskQueryCacheStore.js";
-import { useRemoteWorkspaceSessionStore } from "@/store/remoteWorkspaceSessionStore.js";
+import { useRemoteWorkspaceSessionStore } from "@/store/workspaceServicesRegistry.js";
 import {
   isRemoteWorkspaceTarget,
   resolveWorkspaceRemoteSessionId,

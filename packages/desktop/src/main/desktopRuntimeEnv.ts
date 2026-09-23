@@ -2,7 +2,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, win32 } from "node:path";
-import { listSSHConfigAliasesFromLocalConfig } from "@zcode/services/node";
 import { DEV_HELPER_APP_NAME, HELPER_APP_NAME } from "@zcode/zcode-cua/broker/helperConstants";
 import {
   ZCODE_APP_VERSION_ENV,
@@ -78,15 +77,7 @@ export function getCredentialsDir() {
   return getAppConfigDir();
 }
 
-export type RemoteAssetDirs = {
-  mockCdnDir?: string;
-  remoteCacheDir?: string;
-};
 type LocalRuntimeEnv = Record<string, string | undefined>;
-
-export async function listSSHConfigAliases() {
-  return await listSSHConfigAliasesFromLocalConfig();
-}
 
 function parseDotenv(content: string): Record<string, string> {
   const values: Record<string, string> = {};
@@ -176,22 +167,6 @@ export function loadHostProcessEnvFromLocalFiles(): Record<string, string> {
   return applySelectedZCodeEnvLinks(merged);
 }
 
-function resolveDevelopmentMockCdnDir(): string {
-  return join(import.meta.dirname, "../../mock-cdn");
-}
-
-function resolveAvailableDevelopmentMockCdnDir(): string | undefined {
-  const mockCdnDir = resolveDevelopmentMockCdnDir();
-  const releaseDir = join(mockCdnDir, "releases", ZCODE_VERSION);
-  // 开发态 mock-cdn 是可选离线缓存。当前版本目录不存在时继续传 mockCdnDir，
-  // 会让重连先命中一个必然缺失的本地路径，遮蔽已有的本地 cache fallback。
-  return existsSync(releaseDir) ? mockCdnDir : undefined;
-}
-
-function resolveEnvValue(envName: string, localEnv: LocalRuntimeEnv = {}): string | undefined {
-  return process.env[envName]?.trim() || localEnv[envName]?.trim() || undefined;
-}
-
 function readDefinedProcessEnv(): Record<string, string> {
   const values: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -210,29 +185,6 @@ function applySelectedZCodeEnvLinks(env: Record<string, string>): Record<string,
 
 function resolveHostProcessNodeEnv(): ZCodeRuntimeEnv {
   return desktopRuntimeEnv;
-}
-
-function resolveRemoteAssetCacheDir(localEnv: LocalRuntimeEnv = {}): string {
-  const overrideCacheDir = resolveEnvValue("ZCODE_REMOTE_ASSET_CACHE_DIR", localEnv);
-  if (overrideCacheDir) {
-    // 开发态需要复用正式版 remote cache 验证下载判断，但不能整体切换 Electron userData。
-    // 因此只允许覆盖 remote assets cache 目录，避免污染登录态、窗口状态等其它开发数据。
-    return resolve(overrideCacheDir);
-  }
-
-  return join(getElectronAppPath("userData"), "remote-assets-cache");
-}
-
-export function resolveRemoteAssetDirs(localEnv: LocalRuntimeEnv = {}): RemoteAssetDirs {
-  // 开发态仅保留仓库内 mock-cdn 作为可选离线缓存；生产态只保留本地缓存目录，
-  // 不再暴露任何安装包内 remote-assets 路径或远端下载地址。
-  const developmentMockCdnDir = isElectronAppPackaged()
-    ? undefined
-    : resolveAvailableDevelopmentMockCdnDir();
-  return {
-    ...(developmentMockCdnDir ? { mockCdnDir: developmentMockCdnDir } : {}),
-    remoteCacheDir: resolveRemoteAssetCacheDir(localEnv),
-  };
 }
 
 function resolveBundledZCodeAgentBinaryPath(): string | undefined {

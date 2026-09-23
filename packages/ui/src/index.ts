@@ -36,7 +36,7 @@ export {
   unbindRemoteWorkspacePath,
   unregisterRemoteWorkspaceSession,
   useRemoteWorkspaceSessionStore,
-} from "./store/remoteWorkspaceSessionStore.js";
+} from "./store/workspaceServicesRegistry.js";
 export {
   REMOTE_WORKSPACE_DISCONNECTED_ERROR_CODE,
   createRemoteWorkspaceDisconnectedError,

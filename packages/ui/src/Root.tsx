@@ -5,7 +5,6 @@ import {
   APP_RUNTIME_PREFERENCES_CHANGED_BROADCAST_CHANNEL,
   DesktopCommandIds,
   appRuntimePreferencesChangedBroadcastPayloadSchema,
-  type RemoteTarget,
 } from "@zcode/shared";
 import { TooltipProvider } from "@/components/ui/tooltip.js";
 import { Button } from "@/components/ui/button.js";
@@ -15,7 +14,6 @@ import { DirectoryBrowser } from "@/DirectoryBrowser.js";
 import { useTabPersistence } from "@/hooks/useTabPersistence.js";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { SSHDialog } from "@/SSHDialog.js";
 import { SettingsPage } from "@/SettingsPage.js";
 import { setDefaultFileDisplayBasePath } from "@/lib/fileDisplay.js";
 import { countAllUnreadTasks } from "@/lib/unreadTaskCount.js";
@@ -31,19 +29,17 @@ import { RootWorkspaceContent } from "@/root/RootWorkspaceContent.js";
 import { resolveRootWorkspaceShellTarget } from "@/root/rootWorkspaceShellTarget.js";
 import { OccupationOnboarding } from "@/onboarding/OccupationOnboarding.js";
 import { OnboardingDialog } from "@/onboarding/OnboardingDialog.js";
-import { useRemoteWorkspaceHistory } from "@/root/useRemoteWorkspaceHistory.js";
-import { useRemoteWorkspaceTabLifecycle } from "@/root/useRemoteWorkspaceTabLifecycle.js";
+import { useWorkspaceSessionHistory } from "@/root/useWorkspaceSessionHistory.js";
 import { useRootProviderStateRefresh } from "@/root/useRootProviderStateRefresh.js";
 import { useModelSelectionServiceView } from "@/hooks/useModelSelectionView.js";
 import { useRootProviderSettingsSnapshot } from "@/root/useRootProviderSettingsSnapshot.js";
 import { useDesktopNativeThemeSync } from "@/root/useDesktopNativeThemeSync.js";
 import { useRootPlatformEffects } from "@/root/useRootPlatformEffects.js";
 import { useRootWorkspaceActions } from "@/root/useRootWorkspaceActions.js";
-import { registerBaseWorkspaceServices } from "@/store/remoteWorkspaceSessionStore.js";
+import { registerBaseWorkspaceServices } from "@/store/workspaceServicesRegistry.js";
 import type { RootProps } from "@/root/types.js";
 import { DiffsWorkerPoolProvider } from "@/root/DiffsWorkerPoolProvider.js";
 import { ScopedErrorBoundary } from "@/ErrorBoundary.js";
-import { useRemoteConnectionLogs } from "@/hooks/useRemoteConnectionLogs.js";
 import {
   CODE_COMMENT_REMOVE_BROADCAST_CHANNEL,
   CODE_COMMENT_PREVIEW_RESTORE_BROADCAST_CHANNEL,
@@ -58,10 +54,6 @@ import { CLOSE_ACTIVE_CONTEXT_REQUEST_EVENT } from "@/lib/closeActiveContext.js"
 import { AssistantCodeCommentFeatureProvider } from "@/AssistantCodeCommentFeatureProvider.js";
 
 const DEFAULT_LUCIDE_STROKE_WIDTH = 1.5;
-interface RemoteConnectionOpenPreference {
-  preferredKind?: RemoteTarget["kind"];
-  preferredWslDistro?: string;
-}
 
 /**
  * Root —— 应用根组件
@@ -118,7 +110,6 @@ function RootInner({
   allowOpenWorkspace = true,
   preferDirectoryBrowser,
   supportsEmbeddedBrowser: explicitSupportsEmbeddedBrowser,
-  allowRemoteWorkspace = true,
   initialWorkspaceLoadingFallback,
 }: RootProps) {
   useEffect(() => {
@@ -148,19 +139,11 @@ function RootInner({
         </Button>
       </div>
     ) : null;
-  const [remoteConnectionDialogOpen, setRemoteConnectionDialogOpen] = useState(false);
-  const [remoteConnectionOpenPreference, setRemoteConnectionOpenPreference] =
-    useState<RemoteConnectionOpenPreference | null>(null);
   const [directoryBrowserOpen, setDirectoryBrowserOpen] = useState(false);
-  const [remoteConnectionInProgress, setRemoteConnectionInProgress] = useState(false);
-  const [remoteConnectionRequestId, setRemoteConnectionRequestId] = useState<string | null>(null);
   const [isCreatingFallbackWorkspace, setIsCreatingFallbackWorkspace] = useState(false);
-  const { connectionLogs: remoteConnectionLogs, resetConnectionLogs: resetRemoteConnectionLogs } =
-    useRemoteConnectionLogs(remoteConnectionRequestId);
   const [isBootstrappingInitialWorkspace, setIsBootstrappingInitialWorkspace] = useState(
     Boolean(initialWorkspaceAbsPath),
   );
-  const previousRemoteConnectionInProgressRef = useRef(false);
   const didRequestFallbackWorkspaceRef = useRef(false);
   const rootInnerMountedRef = useRef(true);
   const [hasEnteredNativeThemeSyncSurface, setHasEnteredNativeThemeSyncSurface] = useState(false);
@@ -264,22 +247,6 @@ function RootInner({
     workspaceShellIdentity,
   );
 
-  const localWorkspacePathForRemoteConnection = useTabStore((state) => {
-    const activeTab = state.activeTabId
-      ? state.tabs.find((tab) => tab.id === state.activeTabId)
-      : null;
-    if (
-      !activeTab ||
-      !isWorkspaceTab(activeTab) ||
-      activeTab.remoteSessionId ||
-      activeTab.remoteTarget ||
-      activeTab.workspaceIdentity ||
-      activeTab.workspacePurpose === "conversation"
-    ) {
-      return undefined;
-    }
-    return activeTab.workspacePath;
-  });
   const totalUnreadTaskCount = useZCodeSessionStore((state) =>
     countAllUnreadTasks(state.workspaces),
   );
@@ -298,10 +265,6 @@ function RootInner({
     registerBaseWorkspaceServices(services);
   }, [services]);
 
-  const handleOpenRemoteConnection = useCallback((preference?: RemoteConnectionOpenPreference) => {
-    setRemoteConnectionOpenPreference(preference ?? null);
-    setRemoteConnectionDialogOpen(true);
-  }, []);
   const handleOpenDirectoryBrowser = useCallback(() => {
     setDirectoryBrowserOpen(true);
   }, []);
@@ -332,48 +295,15 @@ function RootInner({
     openDirectoryBrowser: handleOpenDirectoryBrowser,
     refreshProviderState,
     updateAppSettings,
-    onOpenRemoteConnection: allowRemoteWorkspace ? handleOpenRemoteConnection : undefined,
   });
-  const handleRemoteWorkspaceActivated = useCallback(
-    ({
-      workspacePath,
-      workspaceIdentity,
-    }: {
-      workspacePath: string;
-      workspaceIdentity: string;
-    }) => {
-      startDraftInWorkspace(workspacePath, workspaceIdentity);
-    },
-    [startDraftInWorkspace],
-  );
 
-  const {
-    remoteWorkspaceSessions,
-    reconnectingRemoteWorkspaceKeys,
-    remoteWorkspaceErrorByWorkspaceKey,
-    reconnectingRemoteWorkspaceLogsByWorkspaceKey,
-    buildPersistedTabPatch,
-    restorePersistedSession,
-    handleCancelRemoteProject,
-    handleSelectRemoteProject,
-    handleConnectRemote,
-    handleReconnectRemoteWorkspace,
-    handleRemoteWorkspaceTabsClosed,
-  } = useRemoteWorkspaceHistory({
-    intl,
+  const { buildPersistedTabPatch, restorePersistedSession } = useWorkspaceSessionHistory({
     services,
-    platform,
-    supportsSettings,
-    allowRemoteWorkspace,
-    // conversation backing workspace 只属于本地桌面主恢复链路；远程窗口和手机
-    // shared-host attachment 不能因此创建独立本地 runtime 或改变 replayable 边界。
+    // conversation backing workspace 只属于本地桌面主恢复链路。
     ensureConversationWorkspaceOnRestore: isDesktop && restoreSession && !initialWorkspaceIdentity,
     deferInactiveWorkspaceRestore: isDesktop && restoreSession && !initialWorkspaceIdentity,
     unavailableWorkspacePath,
     tabStoreApi,
-    activateTabByPath,
-    addTab,
-    onWorkspaceActivated: handleRemoteWorkspaceActivated,
   });
 
   useEffect(() => {
@@ -434,8 +364,6 @@ function RootInner({
     tabs,
     activeWorkspacePath,
     activeWorkspaceIdentity,
-    reconnectingRemoteWorkspaceKeys,
-    remoteWorkspaceErrorByWorkspaceKey,
     totalUnreadTaskCount,
     hasCompletedFullTabRestore: hasCompletedFullRestore,
   });
@@ -477,13 +405,6 @@ function RootInner({
     isDesktop,
     platform,
     theme,
-  });
-
-  useRemoteWorkspaceTabLifecycle({
-    tabs,
-    activeWorkspaceTab,
-    platform,
-    onRemoteWorkspaceTabsClosed: handleRemoteWorkspaceTabsClosed,
   });
 
   useEffect(() => {
@@ -555,30 +476,6 @@ function RootInner({
     );
   }, [isSettingsTabActive, workspaceShellPath]);
 
-  const handleRemoteConnectionDialogOpenChange = useCallback((open: boolean) => {
-    setRemoteConnectionDialogOpen(open);
-    if (!open) {
-      setRemoteConnectionOpenPreference(null);
-    }
-  }, []);
-
-  const remoteConnectionDialog = allowRemoteWorkspace ? (
-    <SSHDialog
-      onConnect={handleConnectRemote}
-      onSelectProject={handleSelectRemoteProject}
-      onCancelSession={handleCancelRemoteProject}
-      localWorkspacePath={localWorkspacePathForRemoteConnection}
-      isWindowsDesktop={isWindowsDesktop}
-      remoteWorkspaceSessions={remoteWorkspaceSessions}
-      open={remoteConnectionDialogOpen}
-      onOpenChange={handleRemoteConnectionDialogOpenChange}
-      onFlowActiveChange={setRemoteConnectionInProgress}
-      onFlowRequestIdChange={setRemoteConnectionRequestId}
-      preferredKind={remoteConnectionOpenPreference?.preferredKind}
-      preferredWslDistro={remoteConnectionOpenPreference?.preferredWslDistro}
-      hideTriggerWhenClosed
-    />
-  ) : null;
   const directoryBrowserDialog = directoryBrowserOpen ? (
     <ScopedErrorBoundary
       scope="directory-browser"
@@ -596,14 +493,6 @@ function RootInner({
     </ScopedErrorBoundary>
   ) : null;
 
-  useEffect(() => {
-    const wasInProgress = previousRemoteConnectionInProgressRef.current;
-    if (!wasInProgress && remoteConnectionInProgress) {
-      resetRemoteConnectionLogs();
-    }
-    previousRemoteConnectionInProgressRef.current = remoteConnectionInProgress;
-  }, [remoteConnectionInProgress, resetRemoteConnectionLogs]);
-
   const settingsLayerProps = {
     isDesktop,
     isMacDesktop,
@@ -620,7 +509,6 @@ function RootInner({
     return (
       <RootShell>
         {rootModelSelectionErrorNode}
-        {remoteConnectionDialog}
         {directoryBrowserDialog}
         {/* HTML 启动壳已经展示 ZCode SVG，但 React 接管 root 后旧壳会被整棵替换。
             之前阻塞恢复 tab / 初始 workspace 注入时重新渲染纯文字“加载中...”，所以启动被拆成两套 loading。
@@ -650,7 +538,6 @@ function RootInner({
   return (
     <RootShell>
       {rootModelSelectionErrorNode}
-      {remoteConnectionDialog}
       {directoryBrowserDialog}
       <OccupationOnboarding
         showWindowControls={Boolean(isWindowsDesktop || (isDesktop && !isMacDesktop))}
@@ -678,29 +565,13 @@ function RootInner({
             workspaceRemoteSessionId={workspaceShellRemoteSessionId}
             activeWorkspacePath={activeWorkspacePath}
             isSettingsTabActive={isSettingsTabActive}
-            handleConnectRemote={handleConnectRemote}
-            handleSelectRemoteProject={handleSelectRemoteProject}
-            handleCancelRemoteProject={handleCancelRemoteProject}
-            handleReconnectRemoteWorkspace={handleReconnectRemoteWorkspace}
             handleCreateTask={handleCreateTask}
             handleCreateConversationTask={handleCreateConversationTask}
             handleResolveConversationWorkspace={handleResolveConversationWorkspace}
             handleOpenWorkspace={handleOpenWorkspace}
             handleOpenFolderFromWorkspaceMenu={handleOpenFolderFromWorkspaceMenu}
-            handleOpenRemoteWorkspace={
-              allowRemoteWorkspace ? handleOpenRemoteConnection : undefined
-            }
             handleCreateScratchWorkspace={handleCreateScratchWorkspace}
-            remoteConnectionInProgress={remoteConnectionInProgress}
-            remoteWorkspaceSessions={remoteWorkspaceSessions}
-            allowRemoteWorkspace={allowRemoteWorkspace}
             handleBackFromSettings={handleBackFromSettings}
-            reconnectingRemoteWorkspaceKeys={reconnectingRemoteWorkspaceKeys}
-            remoteWorkspaceErrorByWorkspaceKey={remoteWorkspaceErrorByWorkspaceKey}
-            reconnectingRemoteWorkspaceLogsByWorkspaceKey={
-              reconnectingRemoteWorkspaceLogsByWorkspaceKey
-            }
-            remoteConnectionLogs={remoteConnectionLogs}
             allowOpenWorkspace={allowOpenWorkspace}
             isDesktop={isDesktop}
             isMacDesktop={isMacDesktop}

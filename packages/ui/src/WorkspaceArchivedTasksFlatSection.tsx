@@ -11,7 +11,7 @@ import { formatTaskRelativeTime } from "@/lib/taskListItemPresentation.js";
 import { getTaskChangeSummary } from "@/lib/taskChangeSummary.js";
 import { getPathLeaf } from "@/lib/path.js";
 import { logger } from "@/logger.js";
-import { useRemoteWorkspaceSessionStore } from "@/store/remoteWorkspaceSessionStore.js";
+import { useRemoteWorkspaceSessionStore } from "@/store/workspaceServicesRegistry.js";
 import type { WorkspaceTabState } from "@/store/tabStore.js";
 import { buildTaskWorkspaceKey } from "@/lib/taskQueryCache.js";
 import { applyTaskQueryCacheMutation } from "@/store/taskQueryCacheStore.js";

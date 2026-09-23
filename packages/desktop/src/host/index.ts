@@ -56,8 +56,6 @@ import {
   formatLogPrefix,
   formatZCodeHostProcessName,
   formatZodError,
-  buildRemoteWorkspaceIdentity,
-  buildRemoteEnvironmentKey,
   isRemoteWorkspaceIdentity,
   resolveWorkspaceKey,
   formatModelPickerValue,

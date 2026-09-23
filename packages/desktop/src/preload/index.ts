@@ -41,11 +41,8 @@ import type {
   DesktopTitleBarTheme,
   EmbeddedBrowserOpenUrlRequest,
   Locale,
-  OAuthStateRegistration,
   OpenInEditorOptions,
-  RemoteTarget,
   TaskNotificationPayload,
-  RemoteSessionClosedEvent,
   ZCodeStdioTapDevState,
   LoadCliMcpFromUserDirectoryRequest,
   MigrateLegacyCommonMcpRequest,
@@ -53,15 +50,12 @@ import type {
   SaveFileRequest,
   SaveFileResult,
   PrintPageToPdfResult,
-  SSHConfigAliasOption,
-  RemoteConnectionRuntimeLog,
   WindowControlsOverlayMetrics,
   WindowControlsOverlayReadyPayload,
   CreateTempTextAttachmentRequest,
   OpenCuaPermissionOnboardingOptions,
 } from "@zcode/shared";
 import { InternalChannels, PlatformChannels, formatZCodeRendererProcessName } from "@zcode/shared";
-import { createOAuthCallbackHandler } from "./oauthCallbackBridge.js";
 const openWorkspacePathCallbacks = new Set<(path: string) => void>();
 const pendingOpenWorkspacePaths: string[] = [];
 const shareImportCallbacks = new Set<(payload: { shareCode: string }) => void>();
@@ -180,37 +174,6 @@ window.addEventListener("DOMContentLoaded", updateRendererProcessTitle, {
  * 通过 MessagePort RPC 访问，不再经过此 bridge。
  */
 contextBridge.exposeInMainWorld("zcode", {
-  connectRemote: (
-    options: RemoteTarget,
-    requestId?: string,
-    context?: {
-      workspacePath: string;
-      workspaceIdentity?: string;
-      connectTrigger?: import("@zcode/shared").RemoteWorkspaceConnectTrigger;
-    },
-  ) =>
-    ipcRenderer.invoke(PlatformChannels.ConnectRemote, {
-      target: options,
-      requestId,
-      ...(context ? context : {}),
-    }),
-  cancelPendingRemoteConnection: (requestId?: string): Promise<void> =>
-    ipcRenderer.invoke(PlatformChannels.CancelPendingRemoteConnection, {
-      requestId,
-    }),
-  bindRemoteWorkspaceSessionContext: (context: {
-    remoteSessionId: string;
-    workspacePath: string;
-    workspaceIdentity?: string;
-  }): Promise<void> =>
-    ipcRenderer.invoke(PlatformChannels.BindRemoteWorkspaceSessionContext, context),
-  disposeRemoteSession: (sessionId: string): Promise<void> =>
-    ipcRenderer.invoke(PlatformChannels.DisposeRemoteSession, sessionId),
-  isDockerAvailable: (): Promise<boolean> => ipcRenderer.invoke(PlatformChannels.IsDockerAvailable),
-  listWSLDistros: () => ipcRenderer.invoke(PlatformChannels.ListWSLDistros),
-  listDockerContainers: () => ipcRenderer.invoke(PlatformChannels.ListDockerContainers),
-  listSSHConfigAliases: (): Promise<SSHConfigAliasOption[]> =>
-    ipcRenderer.invoke(PlatformChannels.ListSSHConfigAliases),
   loadMcpFromUserDirectory: (payload?: LoadCliMcpFromUserDirectoryRequest) =>
     ipcRenderer.invoke(PlatformChannels.LoadMcpFromUserDirectory, payload ?? {}),
   saveMcpToUserDirectory: (payload: SaveCliMcpToUserDirectoryRequest) =>
@@ -243,27 +206,11 @@ contextBridge.exposeInMainWorld("zcode", {
   /** 长文本粘贴落盘为真正的本地附件，避免正文和 prompt payload 被撑大 */
   createTempTextAttachment: (payload: CreateTempTextAttachmentRequest) =>
     ipcRenderer.invoke(PlatformChannels.CreateTempTextAttachment, payload),
-  /** 订阅当前窗口内远程连接过程日志，返回 disposer */
-  onRemoteConnectionLog: (callback: (entry: RemoteConnectionRuntimeLog) => void) => {
-    const handler = (_event: unknown, payload: unknown) =>
-      callback(payload as RemoteConnectionRuntimeLog);
-    ipcRenderer.on(PlatformChannels.RemoteConnectionLog, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.RemoteConnectionLog, handler);
-  },
-  /** 订阅当前窗口内远程 session 关闭事件，返回 disposer */
-  onRemoteSessionClosed: (callback: (event: RemoteSessionClosedEvent) => void) => {
-    const handler = (_event: unknown, payload: unknown) =>
-      callback(payload as RemoteSessionClosedEvent);
-    ipcRenderer.on(PlatformChannels.RemoteSessionClosed, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.RemoteSessionClosed, handler);
-  },
   /** 检查目录是否已在其他窗口打开 */
   activateOrSetWorkspace: (path: string): Promise<{ activated: boolean }> =>
     ipcRenderer.invoke(PlatformChannels.ActivateOrSetWorkspace, path),
   /** 同步当前窗口所有 tab 的 workspace 路径到 main 进程 */
   syncWindowTabs: (paths: string[]) => ipcRenderer.send(PlatformChannels.SyncWindowTabs, paths),
-  /** 同步当前窗口里 Web 远程控制允许切换的 workspace */
-  /** 同步当前窗口里 Web 远程控制可展示的 task 快照 */
   /** 同步当前窗口的未读 task 数到 main 进程 */
   syncWindowUnreadCount: (count: number) =>
     ipcRenderer.send(PlatformChannels.SyncWindowUnreadCount, count),
@@ -526,23 +473,6 @@ contextBridge.exposeInMainWorld("zcode", {
   /** 从权限浮窗拖拽 Helper.app 到 macOS 权限列表。必须是 send —— invoke 的往返会错过手势。 */
   startCuaHelperPermissionDrag: () =>
     ipcRenderer.send(PlatformChannels.StartCuaHelperPermissionDrag),
-  /** 上报 OAuth state 用于 deep link 路由 */
-  registerOAuthState: (payload: OAuthStateRegistration) =>
-    ipcRenderer.send(PlatformChannels.OAuthRegisterState, payload),
-  /** 注册 OAuth deep link 回调，返回 disposer */
-  onOAuthCallback: (cb: (url: string) => void): (() => void) => {
-    const handler = createOAuthCallbackHandler(cb, () => {
-      ipcRenderer.send(PlatformChannels.OAuthCallbackHandled);
-    });
-    ipcRenderer.on(PlatformChannels.OAuthCallback, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.OAuthCallback, handler);
-  },
-  /** 注册支付 deep link 回调，返回 disposer */
-  onPaymentCallback: (callback: (url: string) => void): (() => void) => {
-    const handler = (_event: unknown, url: string) => callback(url);
-    ipcRenderer.on(PlatformChannels.PaymentCallback, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.PaymentCallback, handler);
-  },
   onShareImport: (callback: (payload: { shareCode: string }) => void): (() => void) => {
     shareImportCallbacks.add(callback);
     while (pendingShareImports.length > 0) {
@@ -652,58 +582,6 @@ ipcRenderer.on(InternalChannels.ServicePort, (event, payload: unknown) => {
   if (port && parsed.success)
     window.postMessage({ type: InternalChannels.ServicePort, ...parsed.data }, "*", [port]);
   else port?.close();
-});
-
-ipcRenderer.on(
-  InternalChannels.ScopedServicePort,
-  (
-    event,
-    payload: {
-      attachmentId?: string;
-      sessionId?: string;
-      target?: RemoteTarget;
-    },
-  ) => {
-    const [port] = event.ports;
-    if (port) {
-      window.postMessage(
-        {
-          type: InternalChannels.ScopedServicePort,
-          attachmentId: payload.attachmentId,
-          sessionId: payload.sessionId,
-          target: payload.target,
-        },
-        "*",
-        [port],
-      );
-    }
-  },
-);
-
-window.addEventListener("message", (event) => {
-  if (event.source !== window || typeof event.data !== "object" || event.data === null) {
-    return;
-  }
-  const payload = event.data as {
-    type?: unknown;
-    attachmentId?: unknown;
-    sessionId?: unknown;
-  };
-  if (
-    payload.type !== InternalChannels.ScopedServicePortReady ||
-    typeof payload.attachmentId !== "string" ||
-    !payload.attachmentId ||
-    typeof payload.sessionId !== "string" ||
-    !payload.sessionId
-  ) {
-    return;
-  }
-  // MessagePort 注册发生在隔离的 renderer world，Main 不能把“已投递”误当作“已可用”。
-  // preload 只把 renderer 的 ready ACK 薄转发给 Main，业务 attachment 状态仍由窗口 session manager 管理。
-  ipcRenderer.send(InternalChannels.ScopedServicePortReady, {
-    attachmentId: payload.attachmentId,
-    sessionId: payload.sessionId,
-  });
 });
 
 ipcRenderer.on(PlatformChannels.TaskNotificationSound, () => {

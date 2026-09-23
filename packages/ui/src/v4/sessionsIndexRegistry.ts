@@ -7,7 +7,7 @@
 import type { IZCodeAgentService } from "@zcode/services";
 import { logger } from "@/logger.js";
 import { remoteAgentServiceGeneration } from "@/lib/remoteAgentServiceGeneration.js";
-import { findRemoteWorkspaceSessionIdForAgentService } from "@/store/remoteWorkspaceSessionStore.js";
+import { findRemoteWorkspaceSessionIdForAgentService } from "@/store/workspaceServicesRegistry.js";
 import { createAgentSessionsIndexTransport } from "@/v4/agentSessionsIndexTransport.js";
 import { SessionsIndexStore } from "@/v4/sessionsIndexStore.js";
 
