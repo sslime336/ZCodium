@@ -24,7 +24,6 @@ import { createAnthropicCompatFetch } from "./anthropic-stream-compat.js";
 import { createOpenAIResponsesJsonCompatFetch } from "./openai-responses-json-compat.js";
 import { createModelOptionMapFetch, type RawRequestBodyCapture } from "./model-option-map-fetch.js";
 import { createNetworkProxyFetch } from "../network/proxy-fetch.js";
-import { createOfficialCodingPlanGatewayFetch } from "./official-coding-plan-gateway.js";
 import { normalizeModelTlsFailure } from "./failure-tls.js";
 import { mergeModelRequestHeaders } from "./model-request-headers.js";
 
@@ -509,14 +508,10 @@ function createProviderProxyFetch(options: ProviderProxyFetchOptions): ProviderF
 }
 
 /**
- * 模型请求出口：先经官方平台网关守卫拒绝遗留端点（见 official-coding-plan-gateway.ts），
- * 再统一进入用户 HTTP 代理 fetch，httpProxy / noProxy 按实际发送地址判定。
+ * 模型请求出口：统一进入用户 HTTP 代理 fetch，httpProxy / noProxy 按实际发送地址判定。
  */
 function createProviderTransportFetch(options: ProviderProxyFetchOptions): ProviderFetch {
-  return createOfficialCodingPlanGatewayFetch({
-    env: options.env,
-    fetch: createProviderProxyFetch(options),
-  });
+  return createProviderProxyFetch(options);
 }
 
 async function detectProviderBusinessError(

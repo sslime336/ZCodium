@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { migrateUserSubagentMarkdown, migrateSubagentStateFile } from "@zcode/shared/node";
+import { migrateSubagentStateFile } from "@zcode/shared/node";
 import {
   parseAgentProfileFromMarkdown,
   type AgentProfile,
@@ -49,25 +49,12 @@ const RESERVED_AGENT_NAMES = new Set(["general-purpose", "Explore"]);
 export async function loadZCodeAgentProfiles(
   input: LoadZCodeAgentProfilesInput,
 ): Promise<LoadZCodeAgentProfilesResult> {
-  const migration = await migrateUserSubagentMarkdown(join(input.storageRoot, "agents"));
   await migrateSubagentStateFile(join(input.storageRoot, "v2", "agents-state.json"));
   const roots = [
     { path: join(input.storageRoot, "agents"), source: "user" as const },
     { path: join(input.workingDirectory, ".zcode", "agents"), source: "project" as const },
   ];
   const diagnostics: AgentProfileParseDiagnostic[] = [];
-  for (const failure of migration.failures) {
-    diagnostics.push({
-      code: "agent_read_failed",
-      message: "Subagent Markdown migration failed; original file preserved",
-      path: failure.path,
-    });
-    input.logger?.warn("Subagent Markdown migration failed", {
-      module: "bootstrap.subagents",
-      path: failure.path,
-      error: String(failure.error),
-    });
-  }
   const agentState = readAgentState(input.storageRoot);
   const profiles: AgentProfile[] = [];
 

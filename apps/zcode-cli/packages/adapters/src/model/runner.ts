@@ -147,26 +147,21 @@ export class AiSdkModelAdapter {
     const resolved = {
       ...boundResolution.resolved,
       properties,
-      ...(options.providerConfig.access.type === "zhipu-account"
-        ? { accountAccess: options.providerConfig.access }
-        : {}),
     };
     const optionSpecs = options.modelConfig.optionSpecs;
     const toLegacyRequest = (request: ModelExecutionRequest): AiSdkModelTextRequest => {
       const context = getCurrentModelInvocationContext();
-      const {
-        refreshRuntimeHeadersBeforeAttempt: contextRefreshRuntimeHeadersBeforeAttempt,
-        ...invocationContext
-      } = context ?? {};
+      // 调用级 runtime header Port 由 adapter 按 Model 绑定决定是否消费；这里先从
+      // invocationContext 剥离，避免未绑定的 Model 隐式带上该回调。
+      const { refreshRuntimeHeadersBeforeAttempt: _contextRefresh, ...invocationContext } =
+        context ?? {};
       const shouldAttachReasoningTelemetry = request.options.reasoningLevel !== undefined;
       const selectedReasoningLevel = request.options.reasoningLevel;
       const requestAuthDependency = options.requestDependencies?.requestAuth;
-      const requestAuthRequired =
-        options.providerConfig.access.type === "zhipu-account" &&
-        options.providerConfig.access.mode === "off-peak";
-      // 调用级 runtime header Port 只服务绑定完整 Account Access 的账号型 Model；
-      // 普通 API-key Model 若也消费该 Port，会把静态鉴权误送到 Host 刷新并在请求前失败。
-      // Off-Peak Model 始终使用创建时注入的执行作用域 Source，不依赖账号服务。
+      // 官方账号型 provider 已移除：只有创建时显式绑定请求级鉴权（协议执行层注入）的
+      // Model 才按 attempt 解析 Source；普通 API-key Model 保持静态鉴权，不把静态凭据
+      // 误送到 Host 刷新并在请求前失败。
+      const requestAuthRequired = requestAuthDependency !== undefined;
       const refreshRuntimeHeadersBeforeAttempt = requestAuthRequired
         ? async (input: ModelRequestAuthSourceInput) => {
             const requestAuth = await requestAuthDependency?.source?.resolve(input);
@@ -178,15 +173,7 @@ export class AiSdkModelAdapter {
             }
             return { headersApplied: true, requestAuth };
           }
-        : options.providerConfig.access.type === "zhipu-account"
-          ? (contextRefreshRuntimeHeadersBeforeAttempt ??
-            (async () => {
-              throw new ModelProtocolError(
-                ModelErrorCode.ModelRequestAuthMissing,
-                `Account model request auth is unavailable: ${resolved.providerId}/${resolved.modelId}`,
-              );
-            }))
-          : undefined;
+        : undefined;
       return {
         messages: request.messages,
         tools: request.tools,
@@ -208,15 +195,7 @@ export class AiSdkModelAdapter {
             }
           : {}),
         ...(refreshRuntimeHeadersBeforeAttempt
-          ? {
-              refreshRuntimeHeadersBeforeAttempt: (input) =>
-                refreshRuntimeHeadersBeforeAttempt({
-                  ...input,
-                  ...(options.providerConfig.access.type === "zhipu-account"
-                    ? { accountAccess: options.providerConfig.access }
-                    : {}),
-                }),
-            }
+          ? { refreshRuntimeHeadersBeforeAttempt }
           : {}),
       };
     };
@@ -238,9 +217,6 @@ export class AiSdkModelAdapter {
               }),
             ),
             properties,
-            ...(options.providerConfig.access.type === "zhipu-account"
-              ? { accountAccess: options.providerConfig.access }
-              : {}),
           })
         : () => ({
             ...boundResolution.resolveRequest({
@@ -250,9 +226,6 @@ export class AiSdkModelAdapter {
               },
             }),
             properties,
-            ...(options.providerConfig.access.type === "zhipu-account"
-              ? { accountAccess: options.providerConfig.access }
-              : {}),
           });
     };
     return createModel({

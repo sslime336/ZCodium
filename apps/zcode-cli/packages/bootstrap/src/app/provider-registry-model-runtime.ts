@@ -76,12 +76,13 @@ export class ApiProviderModelRuntime {
       modelId: registryModel.modelId,
       providerConfig: provider.config,
       modelConfig: config,
-      ...(provider.config.access.type === "zhipu-account" &&
-      provider.config.access.mode === "off-peak"
+      // 协议执行层显式携带请求级鉴权时才绑定 Source（官方账号型 provider 已移除，
+      // 不再按 provider 类型推断）。
+      ...(target.requestDependencies?.requestAuth
         ? {
             requestDependencies: {
               requestAuth: {
-                source: target.requestDependencies?.requestAuth?.source,
+                source: target.requestDependencies.requestAuth.source,
               },
             },
           }

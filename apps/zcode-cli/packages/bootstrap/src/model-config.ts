@@ -3,11 +3,7 @@ import type {
   AiSdkNetworkConfig,
   EnvRecord,
 } from "@zcode/adapters/model";
-import {
-  resolveRuntimeZCodeEnv,
-  resolveRuntimeZCodeEndpointOrigin,
-  ZCODE_APP_VERSION_ENV,
-} from "@zcode/shared";
+import { ZCODE_APP_VERSION_ENV } from "@zcode/shared";
 import {
   createRuntimePlatformHeaders,
   normalizePrintableHeaderValue,
@@ -53,14 +49,11 @@ function buildCliZCodeSourceHeaders(
   const locale = normalizePrintableHeaderValue(Intl.DateTimeFormat().resolvedOptions().locale);
   const timezone = normalizePrintableHeaderValue(Intl.DateTimeFormat().resolvedOptions().timeZone);
   return {
-    "HTTP-Referer": resolveRuntimeZCodeEndpointOrigin(env),
     "User-Agent": `ZCode/${appVersion ?? "unknown"}`,
     ...(appVersion ? { "X-ZCode-App-Version": appVersion } : {}),
     "X-Title": `Z Code@${sourceTitle}`,
-    "X-Release-Channel": resolveRuntimeZCodeEnv(env),
     "X-Client-Language": locale ?? "unknown",
     "X-Client-Timezone": timezone ?? "unknown",
-    "X-ZCode-Agent": "glm",
     ...createRuntimePlatformHeaders(),
   };
 }

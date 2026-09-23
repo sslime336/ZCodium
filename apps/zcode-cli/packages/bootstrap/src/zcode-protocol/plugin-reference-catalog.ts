@@ -122,7 +122,6 @@ export async function resolveSuggestedPluginReference(
           : "disabled") as "conflict" | "ready" | "disabled",
       marketplace,
       pluginName,
-      sourceTrust: "official" as const,
       ...(icon ? { icon } : {}),
       diagnostics:
         entry.conflictingPluginIds.length > 0
@@ -211,7 +210,6 @@ export async function resolveSuggestedPluginReference(
     status: "missing",
     marketplace: SUGGESTED_PLUGIN_MARKETPLACE,
     pluginName: candidate.name,
-    sourceTrust: "official",
     ...(icon ? { icon } : {}),
     ...(candidate.listing ? { listing: candidate.listing } : {}),
     diagnostics: [],

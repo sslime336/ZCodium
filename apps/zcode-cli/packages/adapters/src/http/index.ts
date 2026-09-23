@@ -1,4 +1,3 @@
-import { assertOfficialPlatformAccessible } from "@zcode/shared";
 // ============================================================
 // Node HTTP Client Adapter
 // ============================================================
@@ -54,9 +53,6 @@ export class NodeHttpClientAdapter implements HttpClientPort {
     request: HttpClientRequest,
     options: HttpClientRunOptions = {},
   ): Promise<HttpClientResponse> {
-    // 审计版不连接官方服务：必须在凭证读取与网络请求前短路。
-    assertOfficialPlatformAccessible(request.url);
-
     const startedAt = Date.now();
     const url = normalizeUrl(request.url);
     const timeoutMs = request.timeoutMs ?? this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
