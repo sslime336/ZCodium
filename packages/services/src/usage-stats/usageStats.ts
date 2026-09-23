@@ -1,35 +1,10 @@
-import type {
-  AppUsageRequest,
-  AppUsageSnapshot,
-  CodingPlanUsageRequest,
-  CodingPlanUsageSnapshot,
-  CodingPlanResetOpportunityRequest,
-  CodingPlanResetOpportunityResult,
-  CodingPlanResetScopeRequest,
-  CodingPlanResetStatusSnapshot,
-  CodingPlanResetUseRequest,
-  CodingPlanResetUseResult,
-  UsageEntitlementRequest,
-  UsageEntitlementSnapshot,
-  UsageStatsRequest,
-  UsageStatsSnapshot,
-} from "@zcode/shared";
+import type { AppUsageRequest, AppUsageSnapshot } from "@zcode/shared";
 import { ServiceChannels } from "@zcode/shared";
 import { createServiceDescriptor } from "../descriptors.js";
 
+/** 本地 App 用量统计。官方额度/套餐监控已随登录体系删除（Layer C）。 */
 export interface IUsageStatsService {
   getAppUsageSnapshot(request: AppUsageRequest): Promise<AppUsageSnapshot>;
-  getCodingPlanUsageSnapshot(request: CodingPlanUsageRequest): Promise<CodingPlanUsageSnapshot>;
-  getCodingPlanResetStatus(
-    request: CodingPlanResetScopeRequest,
-  ): Promise<CodingPlanResetStatusSnapshot>;
-  requestCodingPlanResetOpportunity(
-    request: CodingPlanResetOpportunityRequest,
-  ): Promise<CodingPlanResetOpportunityResult>;
-  useCodingPlanReset(request: CodingPlanResetUseRequest): Promise<CodingPlanResetUseResult>;
-  markCodingPlanResetHistoryRead(request: CodingPlanResetScopeRequest): Promise<void>;
-  getSnapshot(request: UsageStatsRequest): Promise<UsageStatsSnapshot>;
-  getEntitlementSnapshot(request?: UsageEntitlementRequest): Promise<UsageEntitlementSnapshot>;
 }
 
 export const IUsageStatsService = createServiceDescriptor<IUsageStatsService>(

@@ -64,13 +64,8 @@ function requiresProviderRuntime(argv: readonly string[]): boolean {
 
   const command = argv[0];
   if (command === undefined || command.startsWith("-")) return true;
-  return (
-    command === "tui" ||
-    command === "app-server" ||
-    command === "agent-server" ||
-    command === "login" ||
-    command === "logout"
-  );
+  // 官方 login/logout 命令已下线：只有真正加载 Provider Registry 的入口需要预解析运行时环境。
+  return command === "tui" || command === "app-server" || command === "agent-server";
 }
 
 async function resolveBundledZCodeBuiltinProviderConfig(input: {

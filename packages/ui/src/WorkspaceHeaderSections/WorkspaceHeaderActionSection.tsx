@@ -11,7 +11,6 @@ export type { WorkspaceHeaderActionSectionProps } from "@/WorkspaceHeaderSection
 export function WorkspaceHeaderActionSection({
   variant = "task",
   activeTaskId,
-  user,
   readOnlyReason,
   workspaceAbsPath,
   workspaceIdentity,

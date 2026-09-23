@@ -326,8 +326,8 @@ export class AiSdkModelExecution {
     if (current) {
       return current;
     }
-    // 官方 Coding Plan 端点先替换为平台网关端点，再进入用户 HTTP 代理 fetch，
-    // httpProxy / noProxy 按实际发送地址判定。
+    // 出口守卫（拒绝官方平台网关遗留端点）后再进入用户 HTTP 代理 fetch，
+    // httpProxy / noProxy 按实际发送地址判定。用户 Provider 始终按配置的 baseUrl 直连。
     const transport = createProviderTransportFetch({
       caCertFile: this.network.caCertFile,
       env: this.env,
@@ -509,9 +509,8 @@ function createProviderProxyFetch(options: ProviderProxyFetchOptions): ProviderF
 }
 
 /**
- * 模型请求出口：官方 Coding Plan 端点经 ZCode 平台网关发送（做套餐权益校验等平台侧处理），
- * 其余 provider 直连；之后统一进入用户 HTTP 代理 fetch，httpProxy / noProxy 按实际发送地址判定。
- * 官方端点与网关端点的对应关系见 official-coding-plan-gateway.ts。
+ * 模型请求出口：先经官方平台网关守卫拒绝遗留端点（见 official-coding-plan-gateway.ts），
+ * 再统一进入用户 HTTP 代理 fetch，httpProxy / noProxy 按实际发送地址判定。
  */
 function createProviderTransportFetch(options: ProviderProxyFetchOptions): ProviderFetch {
   return createOfficialCodingPlanGatewayFetch({

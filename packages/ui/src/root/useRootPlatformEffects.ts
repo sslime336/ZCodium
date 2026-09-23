@@ -37,7 +37,6 @@ export function useRootPlatformEffects({
   remoteWorkspaceErrorByWorkspaceKey = {},
   totalUnreadTaskCount,
   hasCompletedFullTabRestore = true,
-  isRestoringOAuthSession,
 }: {
   initialWorkspaceAbsPath?: string;
   initialWorkspaceIdentity?: string;
@@ -69,14 +68,12 @@ export function useRootPlatformEffects({
   remoteWorkspaceErrorByWorkspaceKey?: Record<string, string>;
   totalUnreadTaskCount: number;
   hasCompletedFullTabRestore?: boolean;
-  isRestoringOAuthSession: boolean;
 }) {
   const didBootstrapInitialWorkspaceRef = useRef(false);
   const baseServices = useOptionalBaseWorkspaceServices();
 
   useEffect(() => {
-    // 启动时必须先判断 OAuth 本地会话，再恢复历史/初始 workspace。
-    // 如果这里抢先 addTab，未登录用户会先看到主界面，之后才被登录页覆盖。
+    // 历史/初始 workspace 恢复只需等待 tab 持久化完成；登录门禁已删除（Layer C）。
     if (!canBootstrapInitialWorkspace || didBootstrapInitialWorkspaceRef.current) {
       return;
     }

@@ -52,8 +52,9 @@ export function OccupationOnboarding({
   const shortcutBindings = useEffectiveShortcutBindings();
   const requested = useZCodeStore((state) => state.newUserOnboardingOpen);
   const setRequested = useZCodeStore((state) => state.setNewUserOnboardingOpen);
-  // 登录态变化（useRootOAuthEffects 登录成功后 setUser）时按 userId 重新判定是否触发引导。
-  const userId = useZCodeStore((state) => state.user?.id) ?? null;
+  // The login system was removed (Layer C): onboarding is device-local only,
+  // so there is no account userId to re-trigger on.
+  const userId = null;
   const { intl } = useZCodeIntl();
   const t = (key: string) => intl.formatMessage({ id: `occupationOnboarding.${key}` });
   const [occupation, setOccupation] = useState<OccupationValue | null>("developer");
