@@ -38,13 +38,11 @@ test("runtime official URL literals are restricted to identity and user-opened l
   const allowed = new Set([
     "packages/shared/src/zcodeEndpoint.ts",
     "packages/ui/src/lib/productDocs.ts",
-    "packages/web/src/share/ConversationShareLandingPage.tsx",
   ]);
   for (const dir of [
     "packages/services/src",
     "packages/desktop/src",
     "packages/ui/src",
-    "packages/web/src",
     "packages/shared/src",
     "apps/zcode-cli/packages",
   ]) {

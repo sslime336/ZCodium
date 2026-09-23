@@ -2,7 +2,6 @@ import { execFile } from "node:child_process";
 import { statSync } from "node:fs";
 import { shell } from "electron";
 import type { OpenInEditorOptions, OpenInEditorRemoteTarget } from "@zcode/shared";
-import { listWSLDistros } from "@zcode/server/remote/wsl-detect.js";
 import { getEditorDefsForCurrentPlatform, resolveEditorDefAppPath } from "./editors.js";
 import { logger } from "./logger.js";
 import { isDelegatedWindowsExplorerExit } from "./windowsExplorerDelegation.js";
@@ -63,20 +62,9 @@ function encodeRemotePath(path: string): string {
 async function resolveWslDistroName(
   target: Extract<OpenInEditorRemoteTarget, { kind: "wsl" }>,
 ): Promise<string | null> {
-  const explicitDistro = target.distro?.trim();
-  if (explicitDistro) {
-    return explicitDistro;
-  }
-
-  try {
-    const distros = await listWSLDistros();
-    return distros.find((distro) => distro.isDefault)?.name ?? distros[0]?.name ?? null;
-  } catch (error) {
-    logger.warn("[editors] 解析默认 WSL distro 失败", {
-      error: stringifyError(error),
-    });
-    return null;
-  }
+  // The default-distro lookup relied on @zcode/server/remote (removed in harness-simplification E1).
+  // Without an explicit distro we can no longer map a WSL path to a Windows UNC target.
+  return target.distro?.trim() || null;
 }
 
 function buildWslUncPathCandidates(path: string, distroName: string): string[] {

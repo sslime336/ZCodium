@@ -103,10 +103,7 @@ import {
 import { resolveZCodeBuiltinProviderConfigFilePath } from "./desktopProviderConfig.js";
 import {
   getCredentialsDir,
-  isDockerDaemonAvailable,
   listSSHConfigAliases,
-  listAvailableDockerContainers,
-  listAvailableWSLDistros,
   loadHostProcessEnvFromLocalFiles,
   resolveBundledGlmBinaryPath,
   resolveRemoteAssetDirs,
@@ -142,7 +139,6 @@ import {
   isWorkspaceOpenUrl,
 } from "./desktopDeepLinkUrl.js";
 import { createRemoteWorkspaceSessionManager } from "./desktopRemoteSessions.js";
-import { resolveCanonicalWslTarget } from "./desktopWslTargetResolver.js";
 import { setBrowserUseGuestWebContentsIdsProvider } from "./resourceManagerWindow.js";
 import { createDesktopHelpConfigReader } from "./desktopHelpConfig.js";
 import { registerPlatformIpcHandlers } from "./desktopMainIpcPlatform.js";
@@ -631,7 +627,6 @@ const remoteSessionManager = createRemoteWorkspaceSessionManager({
   windowHostProcessMap,
   resolveRemoteAssetDirs: () =>
     resolveRemoteAssetDirs({ locale: currentApplicationLocale }, hostProcessLocalEnv),
-  resolveWslTarget: resolveCanonicalWslTarget,
 });
 
 const deviceMid = ensureDesktopDeviceMidSync();
@@ -1409,9 +1404,6 @@ app.whenReady().then(async () => {
       remoteSessionManager.cancelPendingRemoteWorkspaceSessionsForWindow,
     bindRemoteWorkspaceSessionContext: remoteSessionManager.bindRemoteWorkspaceSessionContext,
     confirmRendererAttachmentReady: remoteSessionManager.confirmRendererAttachmentReady,
-    isDockerDaemonAvailable,
-    listAvailableWSLDistros,
-    listAvailableDockerContainers,
     listSSHConfigAliases,
   });
 

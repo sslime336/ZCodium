@@ -2,7 +2,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, win32 } from "node:path";
-import type { ConnectOptions } from "@zcode/server/remote";
 import { listSSHConfigAliasesFromLocalConfig } from "@zcode/services/node";
 import { DEV_HELPER_APP_NAME, HELPER_APP_NAME } from "@zcode/zcode-cua/broker/helperConstants";
 import {
@@ -89,26 +88,13 @@ export function getCredentialsDir() {
   return getAppConfigDir();
 }
 
-export type RemoteAssetDirs = Pick<
-  ConnectOptions,
-  "mockCdnDir" | "remoteCdnBaseUrl" | "remoteCdnBaseUrls" | "remoteCacheDir"
->;
+export type RemoteAssetDirs = {
+  mockCdnDir?: string;
+  remoteCdnBaseUrl?: string;
+  remoteCdnBaseUrls?: string[];
+  remoteCacheDir?: string;
+};
 type LocalRuntimeEnv = Record<string, string | undefined>;
-
-export async function isDockerDaemonAvailable(): Promise<boolean> {
-  const { isDockerAvailable } = await import("@zcode/server/remote");
-  return isDockerAvailable();
-}
-
-export async function listAvailableWSLDistros() {
-  const { listWSLDistros } = await import("@zcode/server/remote");
-  return listWSLDistros();
-}
-
-export async function listAvailableDockerContainers() {
-  const { listDockerContainers } = await import("@zcode/server/remote");
-  return listDockerContainers();
-}
 
 export async function listSSHConfigAliases() {
   return await listSSHConfigAliasesFromLocalConfig();

@@ -24,6 +24,13 @@
 - **D 协议层**：`zcode-protocol` 中 `family: ["zai","bigmodel"]` 枚举、offPeak 载荷字段、`zcodeEndpoint.ts` 常量；重写 `services/src/node.ts` 组合根；同步 CLI contracts。协议改动提供严格类型与运行时校验。
 - **E 整包删除**：见决策 1、3；同步收缩根 `package.json` scripts（typecheck 目标、dev/build 入口）与 `pnpm-workspace.yaml`。
 
+## 执行顺序调整（2026-09-23）
+
+实际执行改为 A → B → E1 → C → D → E2：`packages/web` 与登录删除互相纠缠（web/auth 依赖 oauth），而 web/server-HTTP/CLI 网络分发是纯删除，先做可显著缩小 C/D 的爆炸半径。
+
+- **E1**：删 `packages/web`、`packages/zcode-server-cli`、`packages/server/src/remote/`、server HTTP 入口（保留 stdio/host 入口）、`scripts/build-zcode.mjs` 与 `scripts/zcode-distribution/`（CLI Web 分发）、`.github/workflows`、release-it、`docs/community`、`harness/remote`。
+- **E2**（并入 D 验证）：桌面内 relay/手机远控恢复链路（`web-remote-replayable`）与 remote-workspace UI。
+
 ## 前置事实
 
 fork 已有 `packages/shared/src/officialPlatformPolicy.ts`（7 个官方开关默认关闭）与 `no-official-platform` / `no-telemetry` 回归测试，实现的是“逻辑断连”。本 spec 的目标是“物理删除”，删除完成后这些开关与其设置 UI（“Z.AI 服务”/“官方服务”区块）一并移除，回归测试改为断言相关标识符不再出现于源码。

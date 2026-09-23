@@ -8,8 +8,6 @@
 // - Electron 41 内置 Node 24.x，与 zcode-cli 的目标运行时一致；
 // - 单平台体积从 ~180MB 降到 ~16MB，且同一份 JS 跨平台通用；
 // - app-server 命令路径不会加载 @zcode/tui，所以这里天然不打包 TUI。
-//
-// 远端（SSH/WSL/Docker）没有 Electron，仍走 prepare:remote-assets 的原生二进制，互不影响。
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";

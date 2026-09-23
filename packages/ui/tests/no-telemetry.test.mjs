@@ -17,7 +17,7 @@ async function sources(dir) {
   return nested.flat();
 }
 test("UI and platform adapters have no telemetry collection or reporting entrypoints", async () => {
-  for (const dir of ["packages/ui/src", "packages/web/src", "packages/desktop/src/renderer"]) {
+  for (const dir of ["packages/ui/src", "packages/desktop/src/renderer"]) {
     for (const file of await sources(root + dir)) {
       assert.doesNotMatch(
         await readFile(file, "utf8"),
@@ -32,7 +32,7 @@ test("platform and server do not expose or initialize reporting", async () => {
     await readFile(root + "packages/shared/src/platform.ts", "utf8"),
     /reportTelemetryEvent|reportArmsCustomEvent|RendererActionTrace/,
   );
-  for (const dir of ["packages/server/src", "packages/zcode-server-cli/src"]) {
+  for (const dir of ["packages/server/src"]) {
     for (const file of await sources(root + dir))
       assert.doesNotMatch(await readFile(file, "utf8"), /processResourceTelemetry\s*:/, file);
   }
